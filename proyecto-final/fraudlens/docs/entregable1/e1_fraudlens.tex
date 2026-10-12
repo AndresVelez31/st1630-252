@@ -6,6 +6,7 @@
 \usepackage{mathptmx}          % Times (APA 7)
 \usepackage[scaled=.90]{helvet}
 \usepackage{courier}
+\usepackage{textcomp}
 
 % ---------- Página ----------
 \usepackage[margin=0.9in]{geometry}
@@ -20,12 +21,14 @@
 \usepackage{pdflscape}
 \usepackage{afterpage}
 \usepackage{caption}
+\usepackage[table]{xcolor}
 \usepackage[hidelinks]{hyperref}
-\usepackage{url}
+\usepackage{float}
+\usepackage{xurl}
+\urlstyle{same}
 
-% Idioma: usa babel-spanish si está instalado; si no, define los nombres a mano
 \IfFileExists{spanish.ldf}{%
-  \usepackage[spanish,es-noshorthands]{babel}%
+  \usepackage[spanish,es-noshorthands,es-nodecimaldot]{babel}%
   \addto\captionsspanish{\renewcommand{\tablename}{Tabla}\renewcommand{\figurename}{Figura}}%
 }{%
   \AtBeginDocument{\renewcommand{\tablename}{Tabla}\renewcommand{\figurename}{Figura}}%
@@ -34,9 +37,8 @@
 \setstretch{1.0}
 \setlength{\parindent}{0.5in}
 \setlength{\parskip}{0pt}
-\setlist{nosep, leftmargin=0.5in, itemsep=2pt}
+\setlist{nosep, leftmargin=0.35in, itemsep=1pt}
 
-% Número de página arriba a la derecha (APA 7)
 \pagestyle{fancy}
 \fancyhf{}
 \renewcommand{\headrulewidth}{0pt}
@@ -44,22 +46,21 @@
 \setlength{\headheight}{15pt}
 \fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}\rhead{\thepage}}
 
-% Encabezados estilo APA 7
 \titleformat{\section}[block]{\normalfont\bfseries\centering}{\thesection.}{0.4em}{}
 \titleformat{\subsection}[block]{\normalfont\bfseries}{\thesubsection}{0.5em}{}
 \titleformat{\subsubsection}[block]{\normalfont\bfseries\itshape}{}{0em}{}
-\titlespacing*{\section}{0pt}{12pt}{6pt}
-\titlespacing*{\subsection}{0pt}{10pt}{4pt}
-\titlespacing*{\subsubsection}{0pt}{8pt}{3pt}
+\titlespacing*{\section}{0pt}{10pt}{5pt}
+\titlespacing*{\subsection}{0pt}{8pt}{3pt}
+\titlespacing*{\subsubsection}{0pt}{6pt}{2pt}
 
-% Tablas y figuras estilo APA 7
 \captionsetup{labelsep=newline, labelfont=bf, textfont=it,
-  justification=raggedright, singlelinecheck=false, position=top,
-  skip=4pt}
+  justification=raggedright, singlelinecheck=false, position=top, skip=3pt}
 
+\definecolor{hdr}{HTML}{EEF0F4}
 \newcommand{\code}[1]{{\small\texttt{#1}}}
 \newcommand{\tablefont}{\small\setstretch{1.0}}
 \newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\adrpart}[1]{\textbf{#1.}~}
 
 \hypersetup{pdftitle={FraudLens: detección de fraude en pagos digitales en tiempo real},
   pdfauthor={Vélez, Samper, Salazar, Yanes}}
@@ -69,13 +70,13 @@
 % ======================= PORTADA =======================
 \thispagestyle{plain}
 \setstretch{1.5}
-\vspace*{1.6in}
+\vspace*{1.4in}
 \begin{center}
 {\bfseries FraudLens: detección de fraude en pagos digitales en tiempo real\\[2pt]
 Entregable 1: diagnóstico, requisitos y arquitectura\\[2pt]
-Dominio: fintech colombiana (billetera digital)}
+Dominio: fintech colombiana (billetera digital y pagos inmediatos)}
 
-\vspace{0.5in}
+\vspace{0.45in}
 Andrés Felipe Vélez Álvarez (1021923619; afveleza@eafit.edu.co)\\
 Samuel Samper Cardona (1040180930; ssamperc@eafit.edu.co)\\
 Sebastián Salazar Henao (1022003377; salazarh3@eafit.edu.co)\\
@@ -85,11 +86,14 @@ Hellen Yanes Doria (1026137704; hyanesd@eafit.edu.co)
 Universidad EAFIT\\
 ST1630 Sistemas Intensivos en Datos\\
 Profesor: Andrés Sacre Alzate\\
-10 de octubre de 2026
+11 de octubre de 2026
+
+\vspace{0.3in}
+{\small\setstretch{1.0}Repositorio: \url{https://github.com/AndresVelez31/st1630-252} (rama \texttt{fraudlens-entregable1}, carpeta \texttt{proyecto-final/fraudlens/})}
 \end{center}
 \clearpage
+\setstretch{1.0}
 
-% ======================= TÍTULO REPETIDO =======================
 \begin{center}
 {\bfseries FraudLens: detección de fraude en pagos digitales en tiempo real}
 \end{center}
@@ -99,70 +103,66 @@ Profesor: Andrés Sacre Alzate\\
 
 \subsection*{1.1 Contexto y problema de negocio}
 
-FraudLens es una billetera digital colombiana (proyecto académico, empresa ficticia) que procesa pagos con QR, transferencias inmediatas y pagos a comercios desde una app móvil. El equipo de riesgo detecta hoy el fraude con reportes que se calculan al cierre del día sobre la base de datos operacional. Cuando un analista identifica un patrón sospechoso, como una ráfaga de transferencias pequeñas hacia un mismo comercio recién creado o compras desde un dispositivo nunca visto en otra ciudad, el dinero ya salió y el cliente ya presentó el reclamo.
+Los pagos digitales en Colombia crecen a un ritmo que los controles diarios ya no alcanzan. Bre-B, el sistema de pagos inmediatos del Banco de la República, procesó más de 1.700 millones de transacciones por más de \$262 billones en su primer año y suma más de 36 millones de usuarios (Banco de la República, 2026); el 62~\% de esas operaciones es menor a \$50.000. Nequi, la billetera más grande del país, reporta más de 50 millones de transacciones diarias con 27 millones de usuarios (ABC Economía, 2025). El fraude crece con ellos: Asobancaria registró más de 218.000 reclamos por fraude en canales financieros solo en el primer semestre de 2025, y el 36,6~\% de los colombianos dice haber sido víctima directa de un fraude en el último año (Suárez, 2026).
 
-El problema es este: los analistas de riesgo de FraudLens necesitan detectar patrones de fraude en menos de 2 minutos desde que ocurre la transacción sospechosa, y además necesitan analizar el histórico completo para ajustar las reglas de detección con evidencia, sin afectar el rendimiento de la app de pagos.
+FraudLens es una billetera digital colombiana (empresa ficticia, proyecto académico) conectada a Bre-B que procesa pagos con QR, transferencias inmediatas y pagos a comercios. Hoy su equipo de riesgo detecta el fraude con reportes que se calculan al cierre del día sobre la base de datos operacional. Cuando un analista ve un patrón sospechoso, como una ráfaga de transferencias pequeñas hacia un comercio recién creado o un pago desde un dispositivo nunca visto en otra ciudad, el dinero ya salió: una transferencia inmediata se liquida en segundos y no se puede reversar.
+
+\textbf{El problema:} los analistas de riesgo de FraudLens necesitan detectar patrones de fraude en menos de 2 minutos desde que ocurre la transacción sospechosa y, además, analizar el histórico completo para ajustar las reglas con evidencia, sin afectar el rendimiento de la app de pagos.
 
 \subsection*{1.2 Usuarios del sistema y decisiones que toman}
 
-La Tabla 1 resume quiénes usan el sistema y qué decisión toma cada uno con los datos.
-
-\begin{table}[h]
+\begin{table}[H]
 \caption{Usuarios del sistema y decisiones que toman con los datos}
 \tablefont
-\begin{tabular}{@{}P{1.6in}P{4.7in}@{}}
+\begin{tabular}{@{}P{1.4in}P{3.4in}P{1.55in}@{}}
 \toprule
-\textbf{Usuario} & \textbf{Decisión que toma con los datos}\\
+\textbf{Usuario} & \textbf{Decisión que toma con los datos} & \textbf{Urgencia}\\
 \midrule
-Analista de fraude & Bloquear una cuenta, pedir verificación adicional o descartar una alerta, en los minutos siguientes al evento.\\
-Jefe de riesgo & Ajustar umbrales de las reglas (montos, ventanas de tiempo) según la tasa de fraude por comercio, ciudad y franja horaria.\\
-Equipo de comercios & Suspender o poner en revisión a comercios con montos sospechosos recurrentes.\\
-Auditoría y cumplimiento & Verificar de dónde salió una cifra y reconstruir el estado de los datos en una fecha pasada.\\
+Analista de fraude & Bloquear una cuenta, pedir verificación adicional o descartar una alerta. & Minutos desde el evento\\
+Jefe de riesgo & Ajustar umbrales de las reglas (montos, ventanas) según la tasa de fraude por comercio, ciudad y franja horaria. & Semanal\\
+Equipo de comercios & Suspender o poner en revisión a comercios con montos sospechosos recurrentes. & Diaria\\
+Auditoría y cumplimiento & Verificar de dónde salió una cifra y reconstruir el estado de los datos en una fecha pasada. & Bajo demanda\\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection*{1.3 Preguntas que el sistema debe responder}
 
-\subsubsection*{Operacionales (tiempo real)}
+\textbf{Operacionales (tiempo real, alerta en menos de 2 minutos):}
 \begin{itemize}
-  \item P1. ¿Qué clientes superan 5 transacciones o \$2.000.000 COP acumulados en una ventana de 5 minutos?
-  \item P2. ¿Qué transacciones vienen de un dispositivo nunca visto para ese cliente y con monto mayor a 3 veces su promedio de los últimos 30 días?
-  \item P3. ¿Qué pagos de la última hora involucraron un comercio o un dispositivo de la lista de riesgo?
+  \item P1. ¿Qué clientes superan 5 transacciones o \$2.000.000 acumulados en una ventana de 5 minutos?
+  \item P2. ¿Qué transacciones vienen de un dispositivo nunca visto para ese cliente y con un monto mayor a 3 veces su promedio de los últimos 30 días?
+  \item P3. ¿Qué pagos involucran un comercio o un dispositivo de la lista de riesgo vigente?
 \end{itemize}
-
-\subsubsection*{Analíticas (capa Gold)}
+\textbf{Analíticas (capa Gold, datos con máximo 15 minutos de antigüedad):}
 \begin{itemize}
   \item P4. ¿Cuál es la tasa de fraude (\% de transacciones y \% del monto) por comercio, ciudad y franja horaria, semana a semana?
-  \item P5. ¿Cuál es la latencia promedio y percentil 95 entre la transacción y la generación de la alerta, y cuántas alertas dispara cada regla?
+  \item P5. ¿Cuál es la latencia promedio y en el percentil 95 entre la transacción y su alerta, y cuántas alertas dispara cada regla?
   \item P6. ¿Cuáles son los 10 comercios con mayor monto sospechoso en los últimos 7 días?
 \end{itemize}
 
 \subsection*{1.4 Por qué se necesita una arquitectura de datos distribuida}
 
-Con supuestos razonables para una billetera de tamaño medio, el problema tiene características que una base de datos relacional única no resuelve bien:
-
+El volumen por sí solo no descarta una base relacional grande; lo que la descarta es la combinación de cinco condiciones (el dimensionamiento completo está en el Anexo A):
 \begin{itemize}
-  \item Volumen: un promedio de 1.000 eventos por segundo equivale a unos 86 millones de eventos al día. Con cerca de 1 KB por evento en JSON son alrededor de 86 GB diarios y unos 30 TB al año.
-  \item Velocidad: los picos llegan a 5.000 eventos por segundo (quincena, Día sin IVA, fin de año) y la detección exige cálculos con estado por cliente sobre ventanas de 5 minutos. Recalcularlos con consultas SQL sobre la tabla transaccional competiría con los pagos en curso.
-  \item Variedad: llegan eventos JSON continuos, tablas relacionales de clientes y comercios, y archivos CSV de listas de riesgo. Cada fuente tiene formato, frecuencia y calidad distintos.
-  \item Cargas mezcladas: la app necesita escrituras rápidas y consistentes (OLTP), mientras que los analistas necesitan agregaciones sobre meses de histórico (OLAP). Separarlas evita que una consulta pesada degrade los pagos.
-  \item Reprocesamiento y auditoría: cuando cambia una regla hay que recalcular sobre datos históricos y poder reconstruir el estado de una fecha pasada, lo que exige almacenamiento inmutable y versionado (lakehouse) y no una tabla que se sobrescribe.
+  \item \textbf{Volumen y velocidad.} Se diseña para 1.000 eventos/s en promedio, por encima del promedio de Nequi ($\approx$580 transacciones/s) para absorber el crecimiento de Bre-B, con picos de 5.000 eventos/s en quincena, Día sin IVA y diciembre. Son unos 86 millones de eventos y 86 GB de JSON al día.
+  \item \textbf{Estado por cliente en tiempo real.} P1 y P2 exigen ventanas de 5 minutos y promedios de 30 días por cliente, recalculados de forma continua. Hacerlo con consultas SQL sobre la tabla transaccional competiría con los pagos en curso.
+  \item \textbf{Cargas mezcladas.} La app necesita escrituras rápidas y consistentes (OLTP) y los analistas, agregaciones sobre meses de histórico (OLAP). Separarlas evita que una consulta pesada degrade los pagos.
+  \item \textbf{Variedad.} Llegan eventos JSON continuos, tablas relacionales de clientes y comercios y archivos CSV de listas de riesgo, cada uno con su formato, frecuencia y calidad.
+  \item \textbf{Reprocesamiento y auditoría.} Cuando cambia una regla hay que recalcular sobre el histórico y poder reconstruir una fecha pasada, lo que exige almacenamiento inmutable y versionado, no tablas que se sobrescriben (Kleppmann, 2017).
 \end{itemize}
-
-Por estas razones el sistema separa la ingestión de eventos (Kafka), el procesamiento escalable (Spark) y el almacenamiento en capas (Delta Lake), en lugar de concentrar todo en una sola instancia de PostgreSQL (Kleppmann, 2017).
 
 % ======================= SECCIÓN 2 =======================
 \section{Requisitos funcionales y no funcionales}
 
 \subsection*{2.1 Requisitos funcionales}
 
-Cada requisito describe qué debe hacer el sistema, es verificable y se ubica en una de las cinco capas del diagrama de arquitectura (Sección 3). La columna ``Verificación'' de la Tabla 2 indica cómo se comprueba en la demo y qué pregunta de la Sección 1.3 responde.
+Cada requisito se ubica en una capa del diagrama (Sección 3), es verificable en la demo y, cuando aplica, indica qué pregunta de la Sección 1.3 responde.
 
 \begin{footnotesize}\setstretch{1.0}
-\setlength{\LTpre}{6pt}
+\setlength{\LTpre}{4pt}\setlength{\LTleft}{0pt}\setlength{\LTpost}{2pt}
 \setlength{\tabcolsep}{4pt}
-\begin{longtable}{@{}P{0.55in}P{2.6in}P{1.1in}P{1.95in}@{}}
+\begin{longtable}{@{}P{0.45in}P{2.85in}P{0.95in}P{2.05in}@{}}
 \caption{Requisitos funcionales}\\
 \toprule
 \textbf{ID} & \textbf{Requisito funcional} & \textbf{Capa} & \textbf{Verificación}\\
@@ -177,41 +177,41 @@ Cada requisito describe qué debe hacer el sistema, es verificable y se ubica en
 \endfoot
 \bottomrule
 \endlastfoot
-RF-01 & El sistema debe ingerir en tiempo real los eventos de transacciones (pagos QR, transferencias inmediatas y pagos a comercios) publicándolos en el topic \code{transacciones} de Kafka, particionado por \code{id\_cliente}, con latencia menor a 5 segundos desde su generación. & Ingestión & El productor simulado emite eventos; se mide el tiempo hasta que están disponibles en el topic.\\[2pt]
-RF-02 & El sistema debe cargar periódicamente los catálogos de clientes y comercios desde la base de datos operacional (PostgreSQL 16) hacia la capa Bronze, con una frecuencia mínima diaria. & Fuente / Ingestión & El DAG \code{catalogos\_diario} registra la carga; las tablas existen en Bronze con marca de tiempo.\\[2pt]
-RF-03 & El sistema debe importar los archivos CSV de listas de riesgo (comercios y dispositivos en lista negra) a la capa Bronze cada vez que se publique una versión nueva. & Fuente / Ingestión & Al subir un CSV nuevo aparece una versión nueva en Bronze. Soporta P3.\\[2pt]
-RF-04 & El sistema debe persistir los eventos crudos, sin modificarlos, en la capa Bronze (Delta Lake) junto con su offset de Kafka y su marca de tiempo de ingestión. & Almacenamiento (Bronze) & El número de \code{id\_transaccion} distintos en Bronze coincide con los eventos únicos producidos (Bronze admite duplicados, ver RNF-03).\\[2pt]
-RF-05 & El sistema debe validar, deduplicar por \code{id\_transaccion} y estandarizar los eventos de Bronze hacia Silver. Los mensajes que no se pueden interpretar (JSON mal formado) van al topic \code{transacciones\_dlq} y los que incumplen reglas de calidad (monto negativo, campos obligatorios vacíos) a una tabla de cuarentena en Silver con el motivo del rechazo. & Procesamiento / Silver & Se inyectan duplicados, JSON mal formado y registros inválidos; Silver solo contiene registros únicos y válidos, y cada rechazo aparece en la DLQ o en cuarentena.\\[2pt]
-RF-06 & El sistema debe calcular con Spark Structured Streaming el número de transacciones y el monto acumulado por cliente en ventanas deslizantes de 5 minutos que avanzan cada minuto, y generar una alerta cuando se superen 5 transacciones o \$2.000.000 COP. & Procesamiento (streaming) & Se envía una ráfaga de prueba y se verifica la alerta. Responde P1.\\[2pt]
-RF-07 & El sistema debe generar una alerta cuando una transacción provenga de un dispositivo nunca visto para el cliente y su monto supere 3 veces su promedio de los últimos 30 días. & Procesamiento (streaming) & Caso de prueba con dispositivo nuevo y monto alto. Responde P2.\\[2pt]
-RF-08 & El sistema debe generar una alerta cuando un pago tenga como destino un comercio de la lista de riesgo o provenga de un dispositivo en lista negra, cruzando el flujo de eventos con la versión vigente de la lista. & Procesamiento (join) & Pagos simulados a un comercio y desde un dispositivo de la lista disparan alerta. Responde P3.\\[2pt]
-RF-09 & El sistema debe registrar cada alerta con su regla, transacción, cliente, comercio, marca de tiempo del evento y marca de tiempo de la alerta, en MongoDB (colección \code{alertas\_fraude}) y en la tabla de alertas de Silver, sin registrar dos veces la misma alerta. & Almacenamiento / Consumo & La consulta por cliente y por regla devuelve los campos completos; tras reiniciar el job, el número de alertas no cambia.\\[2pt]
-RF-10 & El sistema debe construir en Gold un modelo dimensional (tablas de hechos de transacciones y de alertas, y dimensiones de cliente, comercio, dispositivo, tiempo y regla) a partir de Silver. & Almacenamiento (Gold) & Una query con joins entre los hechos y las dimensiones se ejecuta correctamente.\\[2pt]
-RF-11 & El sistema debe calcular en Gold la tasa de fraude (\% de transacciones y \% del monto) por comercio, ciudad y franja horaria, con corte semanal. & Procesamiento (batch) / Gold & Query analítica sobre Gold. Responde P4.\\[2pt]
-RF-12 & El sistema debe calcular en Gold la latencia promedio y el percentil 95 entre la transacción y su alerta, y el número de alertas por regla. & Procesamiento (batch) / Gold & Query analítica sobre Gold. Responde P5.\\[2pt]
-RF-13 & El sistema debe listar los 10 comercios con mayor monto sospechoso en los últimos 7 días. & Gold / Consumo & Query sobre Gold devuelve el top 10. Responde P6.\\[2pt]
-RF-14 & El sistema debe permitir consultar la capa Gold con SQL mediante Trino (conector \code{delta\_lake}) y mostrar dashboards de fraude por comercio, ciudad y hora en Metabase, sin acceder a la base de datos operacional. & Consumo & Un analista ejecuta P4--P6 en Trino y ve los resultados en el dashboard de Metabase.\\[2pt]
-RF-15 & El sistema debe orquestar con Airflow todos los pasos batch en dos DAGs: \code{catalogos\_diario} (PostgreSQL y CSV hacia Bronze y Silver, diario o al llegar un CSV nuevo) y \code{fraude\_pipeline} (Silver $\rightarrow$ Gold, controles de calidad y actualización de Metabase, cada 10 minutos). Cada DAG debe detener los pasos posteriores cuando falle uno anterior, y un sensor debe verificar que el job de streaming esté activo. & Orquestación & La UI de Airflow muestra las dependencias; un fallo forzado detiene los pasos siguientes; si el streaming se detiene, el sensor lo reporta.\\[2pt]
-RF-16 & El sistema debe permitir reprocesar un rango de fechas de Silver y Gold aplicando una versión nueva de las reglas (\code{rule\_version}), sin modificar Bronze. & Procesamiento / Almacenamiento & Se reprocesa un día y se comparan resultados con la versión anterior.\\[2pt]
-RF-17 & El sistema debe exponer las alertas mediante una API REST (FastAPI) consultable por cliente, regla y rango de tiempo, y notificar cada alerta nueva al equipo de fraude por webhook. & Consumo & Tras una ráfaga de prueba el webhook recibe la notificación y \code{GET /alertas} devuelve la alerta. Soporta P1--P3.\\
+RF-01 & El sistema debe ingerir en tiempo real los eventos de transacción (pagos QR, transferencias inmediatas y pagos a comercios) en el topic \code{transacciones} de Kafka, con clave \code{id\_cliente} y latencia menor a 5 s desde su generación. & Fuente $\rightarrow$ Ingestión & El productor sella cada evento; se mide el tiempo hasta que está en el topic.\\[1pt]
+RF-02 & El sistema debe cargar cada día los catálogos de clientes y comercios desde PostgreSQL 16 hacia Bronze. & Ingestión batch & El DAG \code{catalogos\_diario} registra la carga y Bronze tiene la versión del día.\\[1pt]
+RF-03 & El sistema debe importar a Bronze cada versión nueva de los CSV de listas de riesgo (comercios y dispositivos) apenas se publique en \code{s3://\ldots/landing/}. & Ingestión batch & Al subir un CSV, el sensor dispara la carga y aparece una versión nueva. Soporta P3.\\[1pt]
+RF-04 & El sistema debe persistir los eventos crudos sin modificarlos en Bronze (Delta Lake en S3) con su topic, partición, offset y \code{ingest\_ts}. & Bronze & Los \code{id\_transaccion} distintos en Bronze coinciden con los eventos únicos producidos.\\[1pt]
+RF-05 & El sistema debe validar, deduplicar por \code{id\_transaccion} y estandarizar los eventos hacia Silver; el JSON ilegible va al topic \code{transacciones\_dlq} y lo que incumple reglas de calidad, a una tabla de cuarentena con el motivo. & Procesamiento $\rightarrow$ Silver & Se inyectan duplicados, JSON roto y montos negativos: Silver solo tiene registros únicos y válidos y cada rechazo está en la DLQ o en cuarentena.\\[1pt]
+RF-06 & El sistema debe contar transacciones y sumar montos por cliente en ventanas deslizantes de 5 min que avanzan cada minuto, y alertar al superar 5 transacciones o \$2.000.000. & Procesamiento (streaming) & Una ráfaga de prueba dispara la alerta. Responde P1.\\[1pt]
+RF-07 & El sistema debe alertar cuando una transacción venga de un dispositivo nunca visto para el cliente y su monto supere 3 veces su promedio de 30 días. & Procesamiento (streaming) & Caso con dispositivo nuevo y monto alto. Responde P2.\\[1pt]
+RF-08 & El sistema debe alertar cuando un pago involucre un comercio o un dispositivo de la versión vigente de la lista de riesgo. & Procesamiento (join) & Pagos a un comercio listado disparan alerta. Responde P3.\\[1pt]
+RF-09 & El sistema debe registrar cada alerta (regla, transacción, cliente, comercio, hora del evento y de la alerta) en DynamoDB y en Silver sin duplicarla, y notificar por Amazon SNS solo las alertas nuevas. & Almacenamiento $\rightarrow$ Consumo & Tras reiniciar el job a mitad de un lote, el número de alertas y de correos no cambia.\\[1pt]
+RF-10 & El sistema debe construir en Gold un esquema en estrella: hechos de transacciones y de alertas; dimensiones de cliente (SCD tipo 2), comercio, dispositivo, tiempo y regla. & Gold & Una consulta con joins entre hechos y dimensiones devuelve resultados correctos.\\[1pt]
+RF-11 & El sistema debe calcular en Gold la tasa de fraude por comercio, ciudad y franja horaria, con corte semanal. & Batch $\rightarrow$ Gold & Consulta en Athena. Responde P4.\\[1pt]
+RF-12 & El sistema debe calcular en Gold la latencia promedio y P95 entre transacción y alerta, y las alertas por regla. & Batch $\rightarrow$ Gold & Consulta en Athena. Responde P5.\\[1pt]
+RF-13 & El sistema debe listar los 10 comercios con mayor monto sospechoso de los últimos 7 días. & Gold $\rightarrow$ Consumo & Consulta en Athena. Responde P6.\\[1pt]
+RF-14 & El sistema debe permitir consultar Gold con SQL en Amazon Athena (tablas registradas en AWS Glue) y mostrar dashboards de fraude en Metabase, sin tocar la base operacional. & Consumo & Un analista ejecuta P4--P6 en Athena y las ve en Metabase.\\[1pt]
+RF-15 & El sistema debe orquestar con Airflow dos DAG: \code{catalogos\_diario} (diario o al llegar un CSV) y \code{fraude\_pipeline} (Silver $\rightarrow$ Gold, calidad y registro en Glue, cada 10 min). Un fallo debe detener los pasos dependientes y una tarea debe verificar que el streaming esté vivo. & Orquestación & Un fallo forzado detiene los pasos siguientes; si se detiene el streaming, Airflow lo reporta.\\[1pt]
+RF-16 & El sistema debe reprocesar un rango de fechas con una versión nueva de las reglas (\code{rule\_version}) escribiendo el resultado en Gold, sin modificar Bronze ni Silver. & Batch $\rightarrow$ Gold & Se reprocesa un día y se comparan las dos versiones.\\[1pt]
+RF-17 & El sistema debe exponer las alertas en una API REST (FastAPI) consultable por cliente, regla y rango de tiempo. & Consumo & \code{GET /alertas} devuelve la alerta de la ráfaga de prueba. Soporta P1--P3.\\
 \end{longtable}
 \end{footnotesize}
 
 \subsection*{2.2 Requisitos no funcionales}
 
-Los valores de la Tabla 3 parten de los supuestos de la Sección 1.4 (1.000 eventos/s en promedio, picos de 5.000 eventos/s, $\sim$1 KB por evento) y de la meta de detección en menos de 2 minutos. La terminología de disponibilidad (CAP) y de garantías de entrega sigue a Kleppmann (2017), y el tratamiento de datos personales se rige por la Ley 1581 de 2012 (Congreso de la República de Colombia, 2012).
+Los valores parten del dimensionamiento del Anexo A y de la meta de detección en menos de 2 minutos. La terminología de CAP y de garantías de entrega sigue a Kleppmann (2017); el tratamiento de datos personales, a la Ley 1581 de 2012.
 
 \begin{footnotesize}\setstretch{1.0}
-\setlength{\LTpre}{6pt}
+\setlength{\LTpre}{4pt}\setlength{\LTleft}{0pt}\setlength{\LTpost}{2pt}
 \setlength{\tabcolsep}{4pt}
-\begin{longtable}{@{}P{0.95in}P{3.55in}P{1.7in}@{}}
+\begin{longtable}{@{}P{0.8in}P{3.95in}P{1.7in}@{}}
 \caption{Requisitos no funcionales}\\
 \toprule
-\textbf{ID / Concepto} & \textbf{Requisito no funcional (valor concreto)} & \textbf{Cómo se verifica}\\
+\textbf{ID / concepto} & \textbf{Requisito no funcional (valor concreto)} & \textbf{Cómo se verifica}\\
 \midrule
 \endfirsthead
 \toprule
-\textbf{ID / Concepto} & \textbf{Requisito no funcional (valor concreto)} & \textbf{Cómo se verifica}\\
+\textbf{ID / concepto} & \textbf{Requisito no funcional (valor concreto)} & \textbf{Cómo se verifica}\\
 \midrule
 \endhead
 \midrule
@@ -219,111 +219,121 @@ Los valores de la Tabla 3 parten de los supuestos de la Sección 1.4 (1.000 even
 \endfoot
 \bottomrule
 \endlastfoot
-RNF-01 Escalabilidad & El sistema debe soportar un pico sostenido de 5.000 eventos/s durante 30 minutos sin degradación (sin crecimiento continuo del lag del consumidor en Kafka). El topic tendrá 12 particiones para permitir hasta 12 tareas de consumo en paralelo, y el sistema debe poder escalar a 10.000 eventos/s agregando ejecutores de Spark sin cambios de código. Las particiones se dimensionan desde el inicio porque agregarlas después cambia qué partición recibe a cada \code{id\_cliente} y rompe el orden por cliente durante la transición. & Prueba de carga con el productor a la máxima tasa que soporte el entorno local; se reportan el throughput medido y el lag del consumidor.\\[2pt]
-RNF-02 Disponibilidad (CAP) & Ingestión CP: Kafka con 3 brokers, \code{acks=all} y \code{min.insync.replicas=2}; si quedan menos de 2 réplicas sincronizadas rechaza escrituras en lugar de aceptar eventos que puedan perderse, porque un pago perdido no se recupera. Consulta de alertas con lectura AP: MongoDB (replica set de 3 nodos) escribe con \code{w=majority}, y las consultas de los analistas usan \code{readPreference secondaryPreferred}: si el primario cae siguen respondiendo desde los secundarios, aunque con segundos de retraso. Meta de disponibilidad: 99,5 \% en ingestión y 99 \% en consulta de alertas. En el despliegue local MinIO corre en un solo nodo y es punto único de falla; en producción se reemplaza por S3 o MinIO distribuido. & Se revisa la configuración; se detiene un broker y luego el primario de MongoDB, y se comprueba que la ingestión y la consulta de alertas siguen funcionando.\\[2pt]
-RNF-03 Consistencia (garantía de entrega) & La ingestión a Kafka es at-least-once (\code{acks=all}, reintentos y productor idempotente). El paso Bronze $\rightarrow$ Silver $\rightarrow$ Gold logra efectivamente exactly-once con checkpoint de Spark en MinIO y escrituras idempotentes (MERGE por \code{id\_transaccion}) en Delta Lake. Las alertas hacia MongoDB también son idempotentes: se escriben con upsert sobre un \code{\_id} determinista (hash de \code{id\_transaccion} o \code{id\_cliente}, regla y ventana), así que reprocesar un micro-batch no duplica alertas. Se aceptan duplicados en Bronze, pero no en Silver, Gold ni en las alertas (duplicados = 0). & Se reinicia el job en mitad de un micro-batch y se comprueba que los conteos en Silver y en MongoDB no cambian.\\[2pt]
-RNF-04 Latencia & Latencia máxima desde la transacción hasta la alerta disponible: 30 s en el percentil 95 y 60 s en el máximo, cumpliendo la meta de negocio de 2 minutos. Para lograrlo el job usa un trigger de 5 s y la regla R1 emite con modo de salida \code{update} (en cada micro-batch, sin esperar el cierre de la ventana ni el watermark). Latencia máxima hasta que el evento esté en Gold: 15 minutos (\code{fraude\_pipeline} corre cada 10 minutos). Las consultas analíticas sobre Gold deben responder en menos de 10 s para 30 días de datos. & Se mide con la marca de tiempo del evento frente a la de la alerta (RF-12).\\[2pt]
-RNF-05 Tolerancia a fallos & Spark corre en modo standalone (1 master y 2 workers). Si un worker o el driver fallan, el job se reinicia desde el último checkpoint y retoma en menos de 5 minutos sin pérdida de eventos (RPO = 0 para eventos ya en Kafka). Kafka replica cada partición en 3 réplicas sobre 3 brokers (tolera la caída de uno sin perder escrituras) y retiene los eventos 7 días, lo que permite reprocesar. Si falla un paso de un DAG, Airflow lo reintenta 3 veces con espera creciente y, si sigue fallando, detiene los pasos dependientes y notifica. & Se apaga un worker o un broker durante la demo y se mide el tiempo de recuperación.\\[2pt]
-RNF-06 Trazabilidad & Cada registro de Silver y Gold conserva el linaje hasta la fuente mediante columnas de auditoría (\code{source\_system}, \code{kafka\_topic}, \code{kafka\_partition}, \code{kafka\_offset}, \code{ingest\_ts}, \code{batch\_id}, \code{rule\_version}). Delta Lake conserva 90 días de historial (\code{delta.logRetentionDuration} y \code{delta.deletedFileRetentionDuration} en 90 días) para reconstruir el estado de una fecha pasada con time travel. Toda cifra de Gold debe poder rastrearse hasta los eventos de Bronze que la generaron. & Se toma una cifra de Gold y se llega a sus eventos originales; se consulta una tabla con \code{VERSION AS OF}.\\[2pt]
-RNF-07 Seguridad y privacidad & Los datos personales (documento, teléfono, correo) se reemplazan desde Silver por un HMAC-SHA-256 con una clave secreta guardada fuera del lakehouse (variable de entorno o gestor de secretos), porque un hash simple de un documento o teléfono se puede adivinar por fuerza bruta; así Gold y los dashboards no los exponen; solo el rol de auditoría accede a Bronze con los originales. En el despliegue local no se configuran TLS ni cifrado en reposo; en producción se exigirían (TLS en Kafka y en las API, cifrado del almacenamiento de objetos) en línea con la Ley 1581 de 2012. & Se revisa que las consultas de analistas en Trino y Metabase no devuelvan datos personales en claro.\\[2pt]
-RNF-08 Calidad de datos & Los registros que no cumplan el esquema o las reglas de calidad no deben detener el pipeline: van a la DLQ o a cuarentena con el motivo del rechazo, y la tasa de rechazo se reporta por ejecución (alerta si supera 1 \%). & Se inyectan registros inválidos y se revisan la DLQ y la tabla de cuarentena.\\
+RNF-01 Escalabilidad & Capacidad de diseño: 5.000 eventos/s sostenidos 30 min sin que el lag del consumidor crezca. El topic tiene 12 particiones (hasta 12 tareas de Spark en paralelo, $\approx$420 eventos/s por partición en el pico). Crecer a 10.000 eventos/s debe requerir solo más brokers y ejecutores, o mover el cómputo a EMR, sin cambiar código ni el almacenamiento en S3. Las particiones se fijan desde el inicio porque aumentarlas cambia la partición de cada \code{id\_cliente} y rompe el orden por cliente. & Prueba de carga escalonada en la EC2 de la demo; se reportan el máximo sostenido y el lag.\\[1pt]
+RNF-02 Disponibilidad (CAP) & La posición CAP se define por componente. \textbf{Kafka: CP}, con 3 brokers, replicación 3, \code{acks=all} y \code{min.insync.replicas=2}: con menos de 2 réplicas sincronizadas rechaza escrituras antes que aceptar pagos que puedan perderse. \textbf{S3: CP}, con consistencia de lectura tras escritura (Lab 1a). \textbf{DynamoDB: escrituras durables y lecturas eventuales (AP)}: los analistas leen sin esperar al líder y toleran segundos de retraso (ADR-04). Metas: 99,5~\% en ingestión y 99~\% en consulta de alertas. & Se detiene un broker y se comprueba que la ingestión sigue; con dos detenidos, el productor recibe error en vez de perder datos.\\[1pt]
+RNF-03 Consistencia (garantía de entrega) & Ingestión at-least-once (\code{acks=all}, reintentos, productor idempotente). De Kafka a Silver y Gold el efecto es exactly-once: checkpoint de Spark en S3 y escrituras idempotentes con \code{MERGE} por \code{id\_transaccion}. Las alertas usan una clave determinista (cliente, regla, ventana o transacción) y \code{PutItem} condicional, y SNS solo notifica cuando la escritura condicional tuvo éxito. Bronze admite duplicados; Silver, Gold, DynamoDB y los correos, cero. & Se mata el job a mitad de un micro-batch: los conteos de Silver, DynamoDB y correos no cambian.\\[1pt]
+RNF-04 Latencia & Evento $\rightarrow$ alerta: 30 s en P95 y 60 s como máximo (trigger de 5 s; R1 emite en modo \code{update} sin esperar el cierre de la ventana). Evento $\rightarrow$ Gold: 15 min (\code{fraude\_pipeline} cada 10 min). Consultas de Athena sobre 30 días: menos de 10 s, gracias a la partición por fecha y a \code{OPTIMIZE ZORDER} (Lab 1b). & Hora del evento contra hora de la alerta (RF-12) y tiempo de ejecución de Athena.\\[1pt]
+RNF-05 Tolerancia a fallos & Si cae un broker, Kafka sigue sin perder escrituras confirmadas. Si cae un worker o el driver de Spark, el contenedor se reinicia y retoma desde el checkpoint en S3 en menos de 5 min (RPO = 0 para eventos en Kafka, retenidos 7 días). Si se pierde una EC2, los datos siguen en S3 y DynamoDB y el cómputo se levanta en otra instancia con el mismo \code{docker-compose.yml} en máximo 20 min. Airflow reintenta cada tarea 3 veces con espera exponencial y luego detiene los dependientes y notifica. & Se apaga un broker y luego el job de streaming durante la demo y se cronometra la recuperación.\\[1pt]
+RNF-06 Trazabilidad & Silver y Gold conservan \code{source\_system}, \code{kafka\_partition}, \code{kafka\_offset}, \code{ingest\_ts}, \code{batch\_id} y \code{rule\_version}. Delta conserva 90 días de historial para time travel. Toda cifra de Gold se rastrea hasta sus eventos de Bronze. & Se sigue una cifra de Gold hasta Bronze y se consulta \code{VERSION AS OF}.\\[1pt]
+RNF-07 Seguridad y privacidad & Documento, teléfono y correo se reemplazan desde Silver por un HMAC-SHA-256 con clave fuera del repositorio (un hash simple se revierte por fuerza bruta). S3 cifra en reposo (SSE-S3) y bloquea el acceso público; las API de AWS usan TLS. Las EC2 usan el \code{LabInstanceProfile}, sin llaves en el código. Solo auditoría lee Bronze con datos originales (Ley 1581 de 2012). & Las consultas de Athena y Metabase no devuelven datos personales en claro.\\[1pt]
+RNF-08 Calidad de datos & Los registros inválidos no detienen el pipeline: van a la DLQ o a cuarentena con su motivo; si la tasa de rechazo de una ejecución supera 1~\%, \code{quality\_checks} falla y notifica. & Se inyectan registros inválidos y se revisa la tasa.\\[1pt]
+RNF-09 Costo & El proyecto completo (desarrollo, pruebas y demo) debe costar menos de USD 50, el crédito de AWS Academy. Ningún servicio que cobre por hora encendido queda prendido fuera de una sesión de trabajo (estimación en el Anexo B). & Revisión del gasto al cerrar cada sesión.\\
 \end{longtable}
 \end{footnotesize}
 
 % ======================= SECCIÓN 3 =======================
+\section{Diagrama de arquitectura de datos por capas}
+
+La Figura 1 (página siguiente) muestra las cinco capas del pipeline. Cada caja nombra la herramienta concreta y una etiqueta indica dónde se despliega: \textbf{EC2-A} (Kafka y Spark Structured Streaming), \textbf{EC2-B} (Airflow con el Spark batch, Metabase, FastAPI y el PostgreSQL que simula la base operacional) o un servicio de AWS que cobra por uso (S3, Glue, Athena, DynamoDB, SNS). Los archivos fuente están en el repositorio (\path{arquitectura.drawio}, \path{arquitectura.png} y \path{arquitectura.svg}) y el diagrama se puede editar en línea desde el enlace de la nota.
+
+\afterpage{%
 \clearpage
-\newgeometry{margin=0.6in}
+\newgeometry{margin=0.45in}
 \begin{landscape}
+\thispagestyle{plain}
 \setstretch{1.0}
-\vspace*{-6pt}\section{Diagrama de arquitectura de datos por capas}
-
-La Figura 1 presenta el pipeline streaming y batch sobre un lakehouse Bronze/Silver/Gold, desplegado localmente con Docker Compose. Los archivos fuente están en el repositorio del grupo (\path{/docs/entregable1/arquitectura.drawio} y \path{arquitectura.png}).
-
 \begin{center}
-\captionof{figure}{Arquitectura de datos por capas de FraudLens}
-\includegraphics[width=\linewidth,height=5.2in,keepaspectratio]{img/arquitectura.png}
+\captionof{figure}{Arquitectura de datos por capas de FraudLens (despliegue híbrido en AWS Academy)}
+\includegraphics[width=\linewidth,height=6.75in,keepaspectratio]{img/arquitectura.png}
 
-\vspace{4pt}
-\raggedright\small\setstretch{1.0}
-\emph{Nota.} Enlace editable en Draw.io: \href{https://app.diagrams.net/\#R7V1ZU\%2BO4Fv41qQoPTXnN8pgNhpkAaULPVN2XlGIricCxgmyzzMP97VebHdsSgwEnDLdMP3QsS7Ks7ztHR\%2BdIcssebZ9XKIAty9jgKG7Z45Zlgd3u1EdgTcA2Og1hTJNa9qRlj2QizYx8kXVFQOIHMIx\%2BAPLA8llGCLZQ3ByQhwTF0IsTAuiNM5Z3SvNm9W2fzwnYbS6xDwOawX8W5cyOYYi6\%2FBeZYqQpa5I\%2BOpcwR3\%2FDNKNMTZAPI5kmkmKMgxjtiokeDkPawEIaIAQ\%2FFbOtcOAXEnZgDZWEuQcCNfUv5Meb8ouxG79BtN7E5RfcgjS3TIg2wMdPuSTedQTjOO3EEQyCHCai3Nkrd7OWERjGVQp4tijxCIJk\%2F3ZGa2S1hl0G66\%2FJ1e1EtjV\%2BSXuA4CT0IavDbNlDQDwJEi1pD582lBfzHfBYyhPlAE3bxNtA5qaMDEY4wIRXZVtD9o\%2BmRzHB91B3Z4XDOJd\%2Bxv9k\%2Blw2ykyvRUNMV16fgS0KGNF\%2Bg8EjjJEHWIMDtA5pmkd7CdJah4\%2BQsFvBQN7YIt9n1Q5l79Db8PnVLjbznId4C2PyQrM8F1mbst0Vl0975lg9R6RtcqSxe5KwkqzrrOI9nPSHRPQVdB0FXSuP7sXV\%2BWR\%2Be9Ea2a2\%2BfdWg\%2FAmUbdv5OphdBWY7D\%2FPs5no0mQ8uL6gsXzcofwLljtv7OpQ7CspOHuXB9HIwmlw1MH8e5n7P\%2BjqYuwrMbh7m0fXV\%2FNdlg\%2B\%2BnhmTb6HwdwD0F4JbVCegThkv6Y81\%2BDHY7Zi2ygXloPyJWnNVPhXx2wSxnKKxMHKUl6d2scFYbSVMmj7RjWGZRMiYgjIDnIVF\%2FSJPav8\%2Bvr07Ukv81T7nxasBH\%2BghWQ3uHPEz\%2Fdws3NEXnaJsE1LoVhjhrMMF\%2B4sWUM9SuBPcU5aocdt6mcMqfAK5iDXtizPJHtDgK11OeZ9zbp9yy2\%2FwxrxI0z2RHKxv8L7uTzgwsVb4yaanfuuwa1YhspuU\%2BxeT\%2B20ye0YnnmsD5zynNaHYYgfAOEtrrOATBSTX\%2BjkDMqDowA7ze09gLEFMWEX97pYxH34fQp0R55ekBsmaz1SWIvQ2rBwGCQMPD2nlYWaP26\%2BBh\%2BvB\%2FIuIURTHIuEMQjNZMNbVH8z\%2BrsjDHqBdOnmiHIxSjR54EQ7VIwB7K3CZwzb0kGRFpX0c59UslQl75DOWGj3Xz0TkuH80qQzzwNoyKf4DVPeNG\%2B48bQPvfotUbbPq2ZL1FoorkpEghLz\%2B24xAWVJ8p\%2B4\%2FCdqrhdgAeIX\%2BFhVSr\%2BbKsOYRr4P4uoLBHagXAu2c9BnhHZAW3KDxFYfQSeqcEyqIMeqX4hQ\%2B3OxyXH0wgTcrbKSzR5y0Z61oxiH8EEETxDxx6hYpGMzXzePqzZQ\%2FKfbbwg4dGAOt3iFS2TLq1SKBVQQIRWQX4idvWQ\%2BYmeaEoknsmivCZcsKLK8reFDKuFSyd9u\%2Fj4ehEDhR0iNHY5JFH0JIXBOQhYY54PoQYAQh9irxaon2Jwovrkzytuf3ChrG9lc0fZoQJfMQV5IO\%2F\%2BOXk5nzScL5\%2Bztu9yua4Wwfp7bdJn1J8HpOExW4owPwC0m7ek64K39NxKyMjrTmCLIXNJdVSItVA4aO05RGfG7YmVqvXafVZw5lGVtU09JOdGJpyiprJ2F\%2BXbFwzxDhzops20GcAv\%2FQQL\%2BF4wpAPunNEWUU0hW8JWq\%2FZHNVg7pfCUBrxeumPZOcDNmCVy94UYigzUwwzbBIO\%2BFNd0WTay9lgq1RRcNTPLFFFzuTcC7lu9kP\%2FB1smZeEy2lW43lKB4mik6bwWm0cGumLuvj1lloDBB2Dacec48DXddlP0PNui3akdXLK977AWt0FAhZBJwoD3cUSvWBO442BB2a4CvYHe\%2FY5WlilRrioblVa\%2Fx7vqMG45tWg0p7pGS\%2Bf0bTmOVx280\%2BG2oCSGBId\%2Fw1Ki0BU6T5dIL2Rm8sFaQ4nPbkXU2N8CnZ4BUSYZPOAOxRRg1nfFD0YtoeYUWYNULD0Y4Uw6SBLABZ9bYs1sdEy1ByDCJSfyjwfnTLNlllAjL5\%2BWl37vbRPA0ZkAdi0C474tMMOb66v\%2FTPJqegwDrp6n4B6WNGglxwhJGKcYWcFuB0OfmpeBZlCaohDcQaHW8WoVcZs3MyO4KUqxh1G8iKOGi\%2FWHsarq7l4tTOxUUN0X0z8nNzUycYq2OySpGKMdSGnpSxuyzac6Gi08BiI\%2BsqO6kzmmue9ETKg2INpoOJ\%2B3Ilmfx2AZZIocSAumIXH9sdh\%2B1TmVUQuNu2\%2FT\%2BPx6Oq6RxPO8xSBoGCUB45dmnrACXrx41enH72ZkLJf10Tbn7WvPR2Or5F2g96XTW1\%2B6OB8pFIwR8\%2BjpixG4ZrKi2P10Qkpp\%2FrcMGgI\%2Bx0rndxrLCW1lNPORrzDsG0XnYCN7dcuebR\%2FXiVchUn6JwzUeM9OhLT3MDHWY86OH2MdVvehSVBapIW60l\%2BAOcKccd0TrDHjuyJOrYNlKzi24wzThhQeXZic690m6aDaCVLZ9QF5mBK4gEc6Y9kBX6JdmGszeMGKSYdDRjb26jxvaH4D2rl0xeGRatQw5FcLql5COByCC1WhN1eFmiQHxo\%2FJMU9Dptdi5oJiHEuFFe\%2BELyUkTnzzEEqSjGudWhYD5LUEh99JtsVizIxZdSGOkokIV0ZAILwlUDaNXfYiQWhUhf9zMkd4QV\%2FJv1tEF5tkyf9lG\%2BoRFwOtvSFr\%2FOrnjGt9WlTj6fkVcZuga7TMQxfRORZaeT27FCrt9DWKYzazjkVpIGrGclSvobTQG7V9wucH4njeNTQQeEsRM4qIKVh2SwtTIXih1Bu6d8\%2FKVhDe\%2BGfIPwfQjj\%2FlWhXj19c3PX5P57WC037CRW\%2F2dLifZR7Wt02c9\%2FYWf2mj1nf00i845oXBfMAceTEnKGQ7YklzEBaK9AgFPC5inhduwiPtIWF9SC5ZnSnYRDyhKkvJ1HIj5SoSPRbhVqI6H3Aj2CPS4lJ00RD7AelCVxqab\%2BqQLAZt6NLYagp6wDHd4mVIq2gebKRUIkVZFjMKEmxtpPCeKAZ0bBXRsFx5jk\%2B\%2Bfi2IRaeHeYv5imIhlUpxsScinVWG0t1j2AkE7Fq3EDPEh4Z6ZSKwr7bPX9pgX41ThIIUifhe1soXqlahj1wN7qoQk7D1N1IGqOB3sTh2oVwjTjQfnXNvEgC\%2FiXaRLV\%2FQKSrvAhQ\%2BiQQDX3D\%2BWZKtdjouYcxDEuhr737U0gDl1eFYsNUwklzwtZBi1oibmmzre2l2S79URTgjiInwFnzQ9W30fyOsK94Dq1TVK\%2BrVrnmpM4jQMV\%2FveEUuNqgQY\%2BIuljFc3sGlh67ru18LWVaCB\%2FhqmO6UwiTdUKYYgmOxTh9QOG7Dd6jTDMsDevUg6Q0GK0HtMDvF89tB\%2F7kI2WU\%2BIB0uKgpqHaxgXSKh2NoEBoINo8Qmf6zfVA8yWMNwvIrnkouH7K1ag\%2BcV6qv9dCd\%2FREb53LMLbRlVLSrgPFju0gwEK4VuGVCmalsSaUMG3NJx69jENJ1v1SK1x4FNrdksnHTL\%2B2iilSrZTzz6uTrItPXYsSN6AVtFyOjpo9jcdSFJNURhIBAWPMpCoU\%2FIHtrgifll4bLV0o6Yq205Hp7z7XSlv6SjvHI3y6tyYwBWB0WaxzcLlDen1pLc6X6znv\%2BsMOVW0RdIfbYacdv4r\%2FRZy9\%2FlwT3OjyOEv6cFP9IssOpN7fdIpQb90\%2BFY5JicQk6Xyx\%2BGVKlJO8SpXJFBWKuIwZe9TEbl\%2Bg5yCnNUx6kHOMashR\%2FuQxy7TbHwXWfR6g21T3\%2BCzivnTdu2JI1rwYRql09qGRvlero1G5YpqVACO2SBndcxePapbOZrvgKrbsRrkFOQc54MyV94yp1RUJ3J2gxxVlqUtNeYHkVP25pgHRM5pkFOQs9yakFMqqhM5t0FOQc6x3Zpkzj6ModvvdLUNPquY37TrNnQ7DY2UXra6NdFIqahOBdBtkFPlyahJdSsV1Ylc411iVo1VPtv9g0Kn1tQ\%2FIHaNf0nT41a\%2FLuyyzbAHwM5tnDo8JtEpmSAfVJnK7g4rtcZqNppMq6dv8lnVAmnLajOb3MbLRAs4Tu\%2BfFW9lKik1uYcznNzGz6RRA26\%2FV5MaUGqqE7tje5qGttUxJ1rsfBBtsiA3u5iBOIaEhZ3ZiezOl7oRu0VMbLOuAbpT0Xf\%2FXiVfbnGnb7yzYcUCNej4Y\%2FvGzDP3bNB7L9csvhvwK\%2Bdg5alT76NzsLIfrncgJ0yqRUoNPquYP21XfUxTNw69dtaVupo4\%2F3EYS\%2F2ITKbAKq8mLi1PPsDxfZ2OoyyC6Wp3T9bxGa8KR6ZN4QuVTaBf7v3e9dzHXLZdWlTXt9SNqf1D7U90Kzmg\%2Fv8sJ7vU5\%2Bkiq\%2FeqOwW8ckV12k3qlp\%2BzILnLjk3wwYe2Lhx1h4Jlvcl17RaFesjePzjZv6mp6Rg1yUNmNxxBHjrqjqBBdkpJ8SwnzWFl\%2F2YxcfpfKSYd8\%2BBi8k2t5J5Tk5j0rSOKibq5Z4rxPT\%2F1VYwb\%2BR1aNCniqekp3ewk\%2Buxsih9RTPvP\%2B5eLT9\%2F\%2BUvFRD\%2FrIHVyEl3eQHwrKT\%2B6A\%2FPODpfPRs7ON9qZsdp6R0Z713cJRpNoqJHi5Ckz5ZQX2qYJBsAUeDCkasigHnLcMy28LyENZjbaHtzsKOT9h1Zjb4swxfsAEOz0y\%2BzIL9kBwwuq\%2BzaWOqS7gC\%2F9HtBIcwdMD0UYzYxJ\%2Fh7HPUzvs7YNj3k8nern\%2FxLmQ9v2n4tPE9Hv0\%2B0z8W\%2Fb25H8\%3D}{abrir el diagrama en app.diagrams.net}. Archivo fuente: \path{arquitectura.drawio}.
+\vspace{2pt}
+\raggedright\small
+\emph{Nota.} Enlace editable en draw.io: \href{https://app.diagrams.net/\#R7V1bd6M4Ev41eYwPCLDxo6892UnSmXbP7M6\%2B\%2BMig2Ey4NYh0Mg\%2F721c3sAD50gnGzjTd53QbAbKsqvpKVapSXRmT4OXR89EV0DZRiq\%2BM6RUAMI57rgfXCQzSXogwaboyZlfGRDSShz2XP\%2FqYwMz1UZhew\%2BQbfQ5oIQwQvzlKvmUeRg7OEkhuzOmzt\%2BTZor\%2Fg5VMC481d5CKfPOC\%2B8Pd0y9B4X\%2B6raNHylnWSf7XUsPD\%2BRvmDojXzXJSKNt6Eo8jHXlxudKIwJAMstcEkib6XH3uMfLfUEMM1qjUsHOjXW\%2F\%2FtuXhT\%2FWH0xi\%2FIW29w9QeuoPO0TqIsFF94BYw5\%2B8NvBzDvTDyfbqAbfZea2MwmUYTzOZ4g35dIxt\%2Bb77hbDDxBIT7mBexhyj70pWfoZygfdd8nr49X5MOafpCIr11NwNV4QD5UGMSlbOhCHNGH4iih9IExTPPOyCCK\%2FsSPx6\%2F5jGP0Qts3OPBJg04\%2BEr72J5FP\%2BjGmYRSS58YpTqInVGk89jnoe\%2BuQXProkX7TM0qwRyg\%2BEs2B57o\%2B6y8KseBIoIvrvCtCTX1O\%2F4r2OQw8nzL5L8h\%2FRrS\%2F4rfR\%2FtHLTqroshShKEA4eSWP5C8A\%2FoaQH5tffZdYUdcEA20kNswfhIL910XHWw4gHwQTqBkizVZqnpgiQmrHu5oYV2MjzOnNEIR\%2BQCGXC0Z911t7mEgTYxdgP3oheXfDBNaPgpUHQ8IwQ5mXCMkQmcxwzd4YM0nC7JU0WiX0C3z4hDZRltLP4yQKCYXAfOGReSecNv9ERVzqj8BH7HtonTFspIMeTVcEa6J8qKN\%2FL\%2Bi\%2FDnRR8MqHmaXXCKb4Wmdj\%2BwgMqht1BrXm1swatcugRr\%2FOoYaSQ7X3c6gPQ6QpIKtCMAbCyBXEgokj5syokIRM2Ww278\%2FBLrpIJG9\%2B5vr1mQNDUJ\%2B4Qf7ee2Zu4yb1idNlsZn\%2FPrv\%2FOjswl983BPUXMXTo3e9kCbBbLsjkavP\%2BzOrXJle\%2BU\%2BFgoTAFp4tR6BXOt07M4cAs0Wlg1unUt\%2Bt0MsxmGFxvmsGN\%2BagdBjf0wVk5vD5zQObwm\%2FtPs8XXG6oRhsZ9o5yu29Z8ZKk4vbhziZxu5NruTKwOGmX1\%2BXhuzlpi9T44L5jXZ86QWf3hy\%2BfJbDG6uyGY\%2FrlRTrctc66NVZxe3LlETu8b5wV1o1lOB8QQGbfD6UNwXlCvz5xZskRv70aT2f0pWN0yzBH5DgWrF3cukdWHxnlB3WwY1GfzudHWAt04L6rXp86SeX3y\%2BX7x\%2B12zTD4cGpZ6jV7cuUQm14F5PkCHcbzTb\%2BZ6zyXi9L9l1KE3pk6Ea2Hnj5idX9zaesYK15uiA4dTYFS1nq5TNuUj3Yxf6n2O6FC1gLtunj2fuTvmFDcfbnJHjnDdqFx1YkBJtSWNYagcZWlEoGeRMZWGDkb0L2nzvRBd54QZ6T3Dqg9\%2B9ky4gXuV6DhxAsMUlhxRzJ\%2Fzr8Xn\%2B\%2FpQ\%2F6f3NOqH0BAhyFy4o2LPoW4gq3JrWH994QWZD92IDVuLk8jNHMw8mw\%2BveBOFhbNqDp\%2BoG6r6vsMeQamDQph42x9ReM0oM7tZ7BORcEvTz\%2Be2PN\%2BkmTHWDhfqLjy1DsPBAdcTjmJObscL17fsmelw2\%2FKV3mZfIxq\%2BCEnrK5A8x43d3gB\%2BJ\%2Fe7g3btfD1XVIcgRNf7jWDIEsN1DUdmE3A9Op7A2l5wn4G5NpupphzMBtOBXQf3UnsO5poC7HO\%2BIfyNCf8fcFqejoRaiYaAKJ4qDc2\%2BgoSD91MwXn8UJfAQpXidoMVvt6RTyrwUCqMYJURkoxD6EgBeEvxPfI8yVyrA0iEkShwOpWT8CfLrw98OdUJGgkLkMsj\%2BxvYCUgbpbD\%2BBbiRMc0hml0ynVzuZvRCdU1I4\%2BdaE6xFUhx1qnx21Qf9Y1Na0JmR\%2BJ2iPGwPtycxWeGyp2Tk2xyqzs9T\%2B8UDbyA3WFkDbSZ8\%2FCmrfeimGxbox8VC6jjj0TRZ\%2FXCpkSxjNFrheGkeph71n1sSW6z79XTTcBK0TqFh4M5MkW9GFcbHEXxgMp0OXbRPP62\%2F9gZJUgukwQ8\%2F0O4iOE60uZd8Ors8N14bdbxGuibQr8ZpHAPBAlSyNmkJuMvP6VOlLGdv9mabVkbvU\%2FgGQW7NL1DT7Ro2aA\%2Fs0yP0EH5\%2FgWbG7tJV3yO0CnQ0Fsl\%2F5qDWKXyvKFIlYvv76BdLBXCSKE8DxHNnhEoWoFP6lC7YhnCXu1ZbfPnxGjHpLhy\%2Fj5fcTxPwe8sLaqPcBnSfKL5CxQfFu4IU9L0xfQ6cnukkZjHHN\%2BKA0Bh4k943noiCOcH1IpEkeEAslqnf1CZJJwTyqCHLnEMTXPoseikKC\%2F7U3lLO5dP1vfMhe\%2BMx6032P\%2BYEUw78J4JqpQSe\%2BFmKgDXr9nsZ7uIWUdQEsc9PPp\%2BEqm\%2FBtabjqJvrxfqRhvyFY7DxJ76aiZVplu3LYnicJMTcD\%2FjDKzUse\%2Feh74QF\%2FeCW4kDxxMEJVl8lFarh\%2FTccTOnLZMXY1A1dkdUr394ooU\%2FqLmKsnUm8SoDBlSoXYJ0wVMMuMWR\%2FRjh6rXdzNvnya1dUSsCtaRfHtXxANrhU7JKXwD5RS5x798BITbUP0GvWSdarh3KrByD0fB1WD2W8MVjqPVePKQWX3nEo58PD4s\%2BqGUmTXft2Qa4IFTjKaHYJcflFE\%2BBs96yJNnsRbr\%2Bk\%2BrkYjLkrGDt9e1krr9Aq4T29\%2Fq\%2F\%2BAKXKzmJtA0tKfg\%2Ft3SLg54FNFM5\%2BoVaPG\%2BFKM9oPO1QzdF2eJFGy07F2xra9L13YWuxCrdQf5HwYUeMNVGu\%2B7Zk\%2FTb8GE2hp3QMq3roAJ6G662FEXyT\%2B5yVf7OaWA3AfAf47kJZS0J5W\%2FgNA4eu\%2FoDRbxO\%2BDb\%2BAFyqTJnWVuay\%2Bfpr4jNGN\%2By5\%2BkkKlKUIyyFxs\%2B9mTUnLe9UtTO1Qc5TTO7ikndTskRJjwm9CTMcBZzpMAtc\%2BIk1eCXutC0NXo0bPdq4I61NYX9n3b2bjLZV2XIC7Vl3Ysv4Y\%2BnvfJ\%2BbAJls3lFzb4p8DC92\%2FylhGYMu4YskymFZNljtGOJk6\%2BXjvjMT7ogB4ymGJV0v0g0d6MKS8q6pfy8g1mHuOl1MhItyzDjM2eRhDML\%2BU3z7HUP\%2BIU6Yi5NoHJMNQ7saGg99WWF8fvh6c3fzX2pF\%2Fvfzl\%2Bnsi8pUJKrPQXSrQ6joJPPR8pnumuVrkpTMeV3\%2FdcrmfMrGGBzrSbRAQzjVGYuN6xpL09vTNcLLdEZlU8qN2K9sxl8\%2B3zPYKqBM6BYCy09IXh1foKZJMmoGTnjoGArd6yj0X\%2BXfEj0\%2BpvQIjnwPsDpeAk5kpb\%2FEJWPTgVhYmdG6iKLwRSTIT4zIlVycthC5mktz9PLfBk0JcxfA0GTaiA6MMkFtvbUIhlQsJz8GOC9ubv\%2BgS8mPCM63XhB7Ap2xF8McqVPm55GzLvYvwaf5kTZknUwjjdlSnruJfrkbTa4Xv4yugdVX\%2BHgyxpKI\%2Bej4C0Ek\%2FFvFfJL\%2Bkg7XLwLXizC1w7kfoCkg6ID9lMBu6O2Fpq2ZyfwxYP3T59vpxwT1WfotQwHMB4moc9SnuRsTORiNYb0QoEfkbBQL70e2Kborto3drUDz9l3XC\%2BSANmBzx07pQCv2jAiEVvdQ3vAovYg9GgdQbU3Q2lf8kq9eIBIjn9k5fEO\%2BqcGD04R2g5nr0cg3EbH2k3t2LkTfGNaxYdB9uxl86rTNKbWNysdzKm3juquPomxGAfybLX6nryEMoulYpB6G1y5B8tC91PhnuOI5gVwLLPOc7VpY8a87I5wX9BZOhSIhA9iB4A8ZvsEo4FaC6\%2BUJjXSWHBFC7SIaK\%2BCFfKNZYaXcFudwIhoYkLEOCDOzn0C6y\%2FOISJ\%2Bjh04BXIQCsEz7SAXQxMmeBDI6\%2FD8l\%2Fvet9qwN8gJcwfS8Xv7S4TD7lcBdMd7LQ3qySt6sIpi49fM5RCRTsY6fKM748DIXusJJT14M\%2F4LsOO5Ezg0vpaQjkYRSKMYR3jAn0U\%2BMyJUTiNpC5NoJQkf79ptI28iFuNtvfT8hzX55w1VvMXUDCvn9GFBcgx0RkPLJZwdkTCCGfrS\%2B2CV5ug2\%2FIctpsqxNoAuLvHL\%2BI\%2BrDtImk\%2BUTQXmO2QqdD1Kaz26\%2Bj3HNUjwfSV\%2Bp4IJYnIlbWDyZ\%2F\%2F8ESCqAclFOEoIqp5JFCaYf0F4D0x3tfmji0nENEt\%2F5uFPJBJRG9xfU3jL0Pg\%2FfbQ\%2F4KjzZ1A8xhitm9i3S\%2FfJp95fkM2zFX0gomXAOoHCqUS8hKfF0Ef9Yd6j5CJZdUzZ8CWSr41gNEwX1oqUDd6ED9UkD9eI\%2BK1sgRoF63dG9\%2B6d4H7R0FlfJ6Vh9q3b64X1zygSECsK8LJ4ocOO\%2FQ2HzFhihzV\%2Bd\%2B6lJhIB6QvtUC7FSnDm0vAW37x4amD0Ejktotn0\%2B5fB6Y7W1foiU9\%2Bvbp8CHxyF2jfO6iBG\%2BiNd0bm21bx2X6SgT9kcPPUOiOaN1AcrnyI\%2BeJN809P\%2B\%2BMXAmSVhWrokZc6Xw\%2FmfI\%2BXCF\%2FXJQI3HWeupLk6MXD\%2F8lHQz7\%2FST5rPVNcTSlVtfziNb8ICV3\%2BI1\%2Fwt8gaIW\%2FYvsiu8jc5Iejs72cvCtBZ4qDKmegYJmuEK2d21VmRHt\%2BKvefyd6j4astUxdtH8lm8Xr50bPZeNrPexGbGSZgsP3JZ5jHp8Jz3chkhEHyVHmBJ2nLR0weRtV3Uu9IrMYegXHHz0PO2WUFOPoK3szw98LDj\%2BTPx\%2FOAkPF\%2BcWHuhTG\%2BKCpDHMr1pgoaZ\%2FmmZ4nZ5fs9xQs3yfOlUrtPyvPFGoNfASdheOu5TZvztaThnWVK8LFdJx2rvZTXwNng9zcK1dPiezGrbXNq2IbZaXNDoD\%2FdCbP15be\%2FzQ2C963ndNhqG8BS3Llh7cvybFazS6RunFSwdvNEoPI1oyUeXnUay3spsyioAHbP9ELP1h8M3MVu7vLZNuj0Lr62S1nltT4Rzs7xWSgRomte2RtifEucd4rQtc\%2F1Z4q0mOU0\%2BY\%2BOCOI1Y\%2Fmu347R\%2FEqfJBwbInJbnm54H0Vpns3\%2Bi8hy80QY6jbEtHVF3MXy2dpcQd3j2brfO27w6p1mkbRPlZTbbxlCfhdEgXgardhltzy5\%2Bs4xWijE5reLU3qQ49dNsRkpR\%2BTKnyalTZ\%2BE1l4CaMny0Q7UW9r7N06BakZBdAjVO5nM5ONyW12gTzRiCNtZoxRc1yWQuTDfFz6QXDxBjlIQsOgto5k4\%2BHL5NvZqtukAEf7btxR7qFS\%2BzsX93vPq8NRw272VWB312gnEhgtGybzBMP6JgDHS7YcEgtlbbW\%2Bj9Mf1bkwtdsECTklF81ZkkQyvv0Ry7Th62sFBWG2TNbbL\%2FqGjYtt3rV87AbnavMUq\%2BHWb0XYHDpiJY2JyD2UTpthrZg8F8B4dLotFIeHYZIIb1\%2FEbdyh8qBfQaDeSykyld7i5etzqcfmBWkw\%2BMqTEx7Hqewecvv\%2F0\%2BW3wdTW5YSRfjXk4XKGqubo\%2F7B72hKJEZOQSoXpCTsfMXaP6YyNTZmwF3ZPZEdfjW3JpZI2VqyP6yNeJ8f5PlrtFDpVkeWsqSIPxlmjkOSlNedyYL2Vl1vs8T3bCHQvrbfX5eKUzZ\%2F6m3zljKXOmEO4OJsVQ7jh9Qqi4at30tjLD3WKnaymPvy1kp5aSMimTRBJrdwfch\%2Bd6aKInGY587kKXRTp3kMobZWj1ZQjfzAtelqjENpKa5\%2BtJ\%2FjzQaqgyk6egTP50csoPJl3lRxOZzkfR6LtIuecoHodEYtBGrP8UThqgg\%2BGgNk1xQWF3GjkN3c6ihKEyoYtAm9IWrazX\%2BzGsVxrwiZ3pAJe9N3tl18hfnonopozzTTV5G1hKqJmTV5LFiMPfo\%2Bw9l8jRBLaNKLlOh4I2eQsM3cnxYHsIrESxlpU9ZwHle9ayj2JZipm71wGGa9fWeMZT\%2B2Ccj4BK17HXOaXd6\%2B67EJk3Zd290BefQVvK\%2F6fqZXMFuvuaXqO5H0F3KMSydyIooWmIuWLIwHhZfHfT0Yf2V5sUXdOLbjvjqKvEFZxNfo653ee2AYiXeybAswwNT69nnXSoZnai2I6pAJarGuUQVnMzo5odpLGMvRvQsjjPb3JW6lxnzIHWW9W7LetBv0bIGdcvaoeWml2legn35zIpOdEpjj3Vt150hut3vaSdSGaBuXbOKDa5cQbYjmGRcm3ZPO0yyE2p50NnT7Wh5oLKnwdnsaQDUoppXdO6kVM5KHVRdYCopbcuGBp0N3ZLIqmxocDYbGtRt6G8ZEQT8umRLo05qyxZ03\%2BqZ2vaPfliCjX5v0IYTG3SmdUsSrDKtwflMa7NG9fz492S5Zqe\%2BdxIsn9ZgH6N3W5Nas5PadqTWUEmteSappUFhYf14ZPrIX9EqP5y7cEvk58PyaCTshVmU13WggVojHsaVoJT8OhovCDMcBaympU5mjcdApaxLVgiTafaYxxYO\%2BVHdaj8IFTUW1UQHk9G4ETItrIToq3z8d\%2BrxkJJneiG\%2BtygZBLgrrKgvDZ9h\%2BDdMehfuACvYumcdYOyWXGVDXREmZah8ZXoDwOSv9wct5rX1XgkgQLXTtXXylpQOI9sleDz18tHAQ6uubQYq35nWCBGRViNEO9lwx8L0e8FXcRxTeb77lYnkWkG8tCevQK\%2F4PWsdcU1S6\%2BgN2oDQ6aXump772V9FnQYXYoUHpWWZuhiJOixSumb3TihV\%2Bg9JVXNZTkfkVZxN8AiMVfzOb5Y9QzcPddWs9NX3GEbFufrlwodknbWCrJKhXxRCGXaCyckGQJVsCtEEpn5K0QQ\%2FJJo7Eq3\%2BYaJp2XpTotkHVruiWd9TuI2ipywuNKO8D1jYOaIQHpHWvyJufDDT5ppYSJgW4\%2BhEVpDTMI4QWcM\%2Bpci6mrJQ0KixQkFgrs1mKukHs8F0YCv8WHL7R6hYUaagwqF1qjJBlHy4Tj9s9HyKAnKGlBeuEa9h81r2bXSCeLWtDpPTcFCv16U09puSQb0r1vXOlIYzC6F\%2BlBCKs8xoimeUfMuoQMoZi6\%2Fcw5hmQdTJpaDZmQUTdIWdGiKlfYSInqquExNRoMgTS549h2VpQpdoQ161mV5\%2By7i3f8WSjncT\%2B\%2BeUyqGmnVUq63s3d14aMG8dsRRRcu1EQRylqPca\%2BEUKeYwSMufMTJF3dl4LWGY7MRgGK4bIo2FY2vcJYh\%2FhYt8nEwnmON\%2Fm8XusQLfwSbAsePRMc9grhQaLXZud5Vqp1cQqug5lzaHsrDCzquW8Lb7r0zszv\%2B7fvbnA7QFd07Qjs\%2BHfsM1DLpOIBqxv7fEExpu7yEXbJ1wPrhMYSA9RriWX\%2Fwc\%3D}{abrir el diagrama en app.diagrams.net}. Archivo fuente: \path{arquitectura.drawio}.
 \end{center}
-
 \end{landscape}
 \restoregeometry
+}
 
 % ======================= SECCIÓN 4 =======================
 \section{Justificación de decisiones técnicas (ADR)}
 
-Cada decisión no trivial se documenta con un Architecture Decision Record (ADR) de cuatro partes: contexto, alternativas consideradas, decisión y consecuencias. Los identificadores RF y RNF remiten a las Tablas 2 y 3, y los riesgos a la Tabla 6.
+Cada decisión no trivial se documenta con un ADR de cuatro partes. Los identificadores remiten a las Tablas 2 y 3 y a los riesgos de la Tabla 6. El ADR-06 (plataforma) condiciona a los demás, porque fija qué servicios caben en el presupuesto de AWS Academy.
 
-% ---------- ADR-01 ----------
 \subsection*{ADR-01: Apache Kafka con entrega at-least-once como capa de ingestión}
 
-\noindent\textbf{Contexto.} FraudLens recibe en promedio 1.000 eventos/s con picos de 5.000 (RNF-01) y debe alertar en menos de 2 minutos. Un pago perdido no se recupera, y cuando cambia una regla hay que reprocesar histórico sin volver a pedir los datos a la app (RF-16). Se necesita un registro durable, particionado y reproducible, desacoplado de la base operacional.
+\adrpart{Contexto} Llegan 1.000 eventos/s en promedio y 5.000 en el pico (RNF-01); un pago perdido no se recupera y, cuando cambia una regla, hay que releer el flujo sin pedirle los datos otra vez a la app (RF-16). Se necesita un registro durable, particionado y reproducible, desacoplado de la base operacional.
 
-\noindent\textbf{Alternativas consideradas.} (a) \emph{Escribir directo en PostgreSQL:} compite con los pagos en curso (carga OLTP) y no escala a 5.000 escrituras/s con ventanas calculadas encima. (b) \emph{RabbitMQ:} es una cola que elimina el mensaje al consumirlo, por lo que no permite reprocesar ni que varios consumidores lean el mismo evento a su ritmo. (c) \emph{Amazon Kinesis:} funcionalmente equivalente, pero ata el proyecto a AWS y el despliegue es local con Docker Compose.
+\adrpart{Alternativas consideradas} (a) \emph{Escribir directo en PostgreSQL}: compite con los pagos (OLTP) y no sostiene 5.000 escrituras/s con ventanas calculadas encima. (b) \emph{RabbitMQ}: borra el mensaje al consumirlo, así que no permite releer ni que varios consumidores lean a su ritmo. (c) \emph{Amazon Kinesis} (Lab 2b): equivalente y administrado, pero cobra por shard-hora encendido y no corre en el \code{docker-compose.yml} que exige el E2 (ADR-06).
 
-\noindent\textbf{Decisión.} Kafka en modo KRaft con 3 brokers y un topic \code{transacciones} de 12 particiones, con clave \code{id\_cliente}: todos los eventos de un cliente caen en la misma partición y conservan su orden, que es lo que necesitan las reglas con estado por cliente. Replicación 3, \code{acks=all}, \code{min.insync.replicas=2}, productor idempotente y retención de 7 días. Frente al teorema CAP, la ingestión es CP: ante una partición de red o la pérdida de réplicas sincronizadas, Kafka rechaza escrituras en lugar de aceptar eventos que podrían perderse. La garantía configurada es at-least-once; el efecto exactly-once se logra aguas abajo con MERGE por \code{id\_transaccion} (RNF-03). Se descartó at-most-once porque pierde pagos, y las transacciones exactly-once de Kafka porque añaden complejidad que el MERGE idempotente ya resuelve.
+\adrpart{Decisión} Kafka en modo KRaft con imagen \code{cp-kafka:7.6.0} (la del Lab 2a), 3 brokers y un topic \code{transacciones} de 12 particiones con clave \code{id\_cliente}: los eventos de un cliente caen en la misma partición y conservan su orden, que es lo que necesitan las reglas con estado por cliente. Replicación 3, \code{acks=all}, \code{min.insync.replicas=2}, productor idempotente y retención de 7 días. Frente a CAP la ingestión es \textbf{CP}: ante la pérdida de réplicas sincronizadas Kafka rechaza escrituras. La garantía configurada es \textbf{at-least-once}; el efecto exactly-once se logra aguas abajo con \code{MERGE} idempotente (RNF-03), el mismo patrón del Lab 2a. Se descartó at-most-once porque pierde pagos, y las transacciones de Kafka porque añaden complejidad que el \code{MERGE} ya resuelve.
 
-\noindent\textbf{Consecuencias.} Se sacrifica disponibilidad de escritura si caen 2 de los 3 brokers. Los duplicados llegan a Bronze y deben eliminarse en Silver. Las 12 particiones no se pueden aumentar sin cambiar a qué partición va cada \code{id\_cliente}, y por tanto sin romper el orden por cliente en la transición; por eso se dimensionan desde el inicio. Tres brokers consumen mucha memoria en un portátil (riesgo de la Tabla 6, mitigado con límites por contenedor).
+\adrpart{Consecuencias} Se sacrifica disponibilidad de escritura si caen 2 de 3 brokers. Los duplicados llegan a Bronze y se eliminan en Silver. Las 12 particiones no se pueden aumentar sin romper el orden por cliente durante la transición. Los 3 brokers comparten la EC2-A: toleran la caída de un proceso, no la de la máquina; en producción irían en hosts separados o en Amazon MSK.
 
-% ---------- ADR-02 ----------
 \subsection*{ADR-02: Spark Structured Streaming frente a Flink o batch puro}
 
-\noindent\textbf{Contexto.} Las reglas R1 a R3 exigen cálculos con estado por cliente sobre ventanas deslizantes de 5 minutos, un cruce con las listas de riesgo y alertas con latencia P95 de 30 s (RNF-04). El mismo equipo debe además construir las capas Silver y Gold en batch (RF-10 a RF-13) y los cuatro integrantes deben poder defender todo el código.
+\adrpart{Contexto} R1 a R3 necesitan estado por cliente en ventanas deslizantes de 5 min, cruces con listas de riesgo y alertas en 30 s (P95, RNF-04). El mismo equipo debe construir Silver y Gold en batch (RF-10 a RF-13) y los cuatro deben poder defender todo el código.
 
-\noindent\textbf{Alternativas consideradas.} (a) \emph{Apache Flink:} procesa evento por evento con latencia de milisegundos y mejor manejo de estado, pero obliga a aprender y operar un segundo motor además de Spark, que el curso usa para el batch; la ganancia de latencia no se necesita con una meta de 30 s. (b) \emph{Batch puro cada 10 minutos:} es simple, pero no cumple la meta de 2 minutos ni el requisito de streaming real, y la guía del curso no acepta simular con batch. (c) \emph{Kafka Streams:} reduce piezas, pero está atado a la JVM y no ofrece la integración directa con Delta Lake ni con PySpark.
+\adrpart{Alternativas consideradas} (a) \emph{Apache Flink}: procesa evento por evento en milisegundos y maneja mejor el estado, pero obliga a operar un segundo motor además de Spark, y esa latencia no se necesita con una meta de 30 s. (b) \emph{Batch puro cada 10 min}: no cumple los 2 minutos y la guía no acepta simular el streaming con batch. (c) \emph{Kafka Streams}: reduce piezas, pero es solo JVM y no se integra con Delta ni con PySpark.
 
-\noindent\textbf{Decisión.} Spark Structured Streaming con trigger de 5 s. R1 usa ventanas deslizantes de 5 minutos con avance de 1 minuto y modo de salida \emph{update} dentro de \code{foreachBatch}: emite la alerta en cada micro-batch sin esperar el cierre de la ventana ni el watermark, que en modo \emph{append} añadiría minutos de retraso. Las alertas se escriben con upsert sobre un \code{\_id} determinista, y el checkpoint en MinIO permite retomar tras una falla (RNF-03, RNF-05). Se usa un único motor para streaming y batch, con la misma API de DataFrames.
+\adrpart{Decisión} Spark Structured Streaming 3.5.1 con Delta 3.1.0 (la combinación del Lab 4a) y trigger de 5 s. Se deduplica con \code{dropDuplicatesWithinWatermark} (watermark de 10 min) y se escribe con \code{foreachBatch} y \code{MERGE}. R1 usa ventanas de 5 min con avance de 1 min en modo \code{update}: emite en cada micro-batch sin esperar el cierre de la ventana, que en modo \code{append} añadiría minutos. R2 y R3 hacen join stream-static con las dimensiones de Gold. El checkpoint vive en S3, así que el job retoma aunque se pierda la EC2-A.
 
-\noindent\textbf{Consecuencias.} Es micro-batch, no procesamiento por evento: la latencia mínima es de segundos, no de milisegundos. R2 y R3 hacen join stream-static con Gold, así que un dispositivo visto después de la última actualización puede marcarse como nuevo hasta 10 minutos (riesgo de la Tabla 6, aceptado y documentado). El estado de las ventanas y el watermark consumen memoria en los 2 workers. Si el volumen se multiplicara por 100, el primer cambio sería evaluar Flink para R1.
+\adrpart{Consecuencias} Es micro-batch: la latencia mínima es de segundos. Un dispositivo visto después de la última actualización de Gold puede marcarse como nuevo durante hasta 10 min (riesgo aceptado en la Tabla 6). El estado de las ventanas consume memoria de la EC2-A, y los lotes de 5 s crean archivos pequeños que hay que compactar. Si el volumen se multiplicara por 100, el primer cambio sería evaluar Flink para R1.
 
-% ---------- ADR-03 ----------
-\subsection*{ADR-03: Delta Lake como lakehouse y modelo dimensional en Gold}
+\subsection*{ADR-03: Delta Lake sobre S3 con esquema en estrella en Gold}
 
-\noindent\textbf{Contexto.} El sistema necesita almacenamiento inmutable y versionado para reprocesar y reconstruir el estado de una fecha pasada (RNF-06), escrituras idempotentes sin duplicados (RNF-03) y consultas analíticas sobre 30 días en menos de 10 s (RNF-04). Los analistas responden P4 a P6 con agregaciones por comercio, ciudad y franja horaria, y no deben tocar la base operacional.
+\adrpart{Contexto} Se necesita almacenamiento inmutable y versionado para reprocesar y auditar (RNF-06), escrituras idempotentes (RNF-03) y consultas de 30 días en menos de 10 s (RNF-04). P4 a P6 son agregaciones por comercio, ciudad y franja horaria.
 
-\noindent\textbf{Alternativas consideradas.} (a) \emph{Parquet sin formato de tabla:} no ofrece transacciones ACID ni MERGE, así que reprocesar o deduplicar obliga a reescribir carpetas completas. (b) \emph{Apache Iceberg o Hudi:} son opciones válidas con prestaciones similares, pero la integración con Spark, el conector de Trino y la experiencia previa del equipo (laboratorios del curso) favorecen a Delta. (c) \emph{PostgreSQL como almacén analítico:} mezcla cargas OLTP y OLAP y no escala a decenas de TB al año (Kleppmann, 2017).
+\adrpart{Alternativas consideradas} (a) \emph{Parquet sin formato de tabla}: sin ACID ni \code{MERGE}; deduplicar obliga a reescribir carpetas enteras. (b) \emph{Apache Iceberg}: prestaciones similares, pero el equipo ya usó Delta con Glue y Athena en el Lab 1b, y cambiar suma aprendizaje sin resolver ningún requisito. (c) \emph{Amazon Redshift}: cobra por hora encendido y mezcla almacenamiento con cómputo.
 
-\noindent\textbf{Decisión.} Delta Lake sobre MinIO (compatible con S3) con arquitectura Bronze, Silver y Gold. Delta aporta transacciones ACID, \code{MERGE} por \code{id\_transaccion} y time travel con 90 días de historial. En Gold se usa un modelo dimensional (esquema en estrella): \code{fact\_transacciones} y \code{fact\_alertas} con las dimensiones \code{dim\_cliente} (SCD tipo 2, para conservar el historial de atributos del cliente), \code{dim\_comercio}, \code{dim\_dispositivo}, \code{dim\_tiempo} y \code{dim\_regla}. El modelo en estrella es adecuado porque las preguntas P4 a P6 son agregaciones sobre hechos filtradas por dimensiones, y reduce los joins frente a un modelo normalizado.
+\adrpart{Decisión} Delta Lake en Amazon S3 con capas Bronze, Silver y Gold, consultado con Athena tras registrar las tablas en el Glue Data Catalog (\code{table\_type = DELTA}; Amazon Web Services, s.~f.). Delta aporta ACID, \code{MERGE} y 90 días de time travel. Gold es un esquema en estrella: \code{fact\_transacciones} y \code{fact\_alertas} con \code{dim\_cliente} (SCD tipo 2), \code{dim\_comercio}, \code{dim\_dispositivo}, \code{dim\_tiempo} y \code{dim\_regla}. Es adecuado porque P4 a P6 son agregaciones sobre hechos filtradas por dimensiones y el modelo reduce joins frente a uno normalizado. Regla clave: \textbf{un único escritor por tabla}. Delta OSS en S3 solo garantiza transacciones si las escrituras de una tabla salen de un mismo driver de Spark (Delta Lake, s.~f.). Por eso el streaming es dueño de Bronze, Silver y las alertas, el batch es dueño de los catálogos y de Gold, y el reproceso (RF-16) escribe en Gold sin tocar Silver.
 
-\noindent\textbf{Consecuencias.} Trino necesita un metastore para ver las tablas Delta (riesgo de la Tabla 6, con Spark SQL como plan B). Hay que compactar archivos pequeños (\code{OPTIMIZE}) producidos por el streaming. Los cambios de esquema deben controlarse con el contrato de datos, porque un \code{mergeSchema} sin control rompe a los consumidores. MinIO en un solo nodo es punto único de falla en el despliegue local. El modelo dimensional exige diseñar las dimensiones por adelantado y es menos flexible para consultas no previstas.
+\adrpart{Consecuencias} Si en el futuro dos jobs tuvieran que escribir la misma tabla, habría que activar el \code{S3DynamoDBLogStore}. Athena solo lee Delta: toda escritura pasa por Spark. Hay que compactar con \code{OPTIMIZE} y vigilar el esquema, porque un \code{mergeSchema} sin control rompe a los consumidores. El modelo en estrella exige diseñar las dimensiones por adelantado y es menos flexible para preguntas no previstas.
 
-% ---------- ADR-04 ----------
-\subsection*{ADR-04: MongoDB como almacén de alertas y su posición CAP}
+\subsection*{ADR-04: Amazon DynamoDB como almacén de alertas y su posición CAP}
 
-\noindent\textbf{Contexto.} Las alertas deben consultarse por cliente, regla y rango de tiempo con baja latencia (RF-09, RF-17), las escribe el streaming varias veces por segundo en picos y su estructura puede cambiar al agregar reglas. Los analistas deben poder consultarlas aunque falle un nodo.
+\adrpart{Contexto} Las alertas se consultan por cliente, regla y rango de tiempo con baja latencia (RF-09, RF-17). El streaming las escribe varias veces por segundo en los picos y sus campos varían por regla. Deben sobrevivir a la caída de una EC2.
 
-\noindent\textbf{Alternativas consideradas.} (a) \emph{PostgreSQL:} funciona, pero añade carga sobre una base de tipo OLTP y su esquema rígido encaja peor con alertas cuyos campos varían por regla. (b) \emph{Cassandra:} AP por diseño y excelente para escrituras masivas, pero el volumen de alertas es mucho menor que el de eventos y su modelado por consultas es más costoso para un equipo de cuatro. (c) \emph{Consultar solo Delta/Gold con Trino:} tiene latencia de segundos y de refresco de 10 minutos, insuficiente para la consulta operativa.
+\adrpart{Alternativas consideradas} (a) \emph{MongoDB en contenedores} (la primera propuesta del equipo): un replica set de 3 nodos en la misma EC2 no da disponibilidad real y consume la RAM que necesita Spark. (b) \emph{PostgreSQL o Amazon RDS}: RDS cobra por hora encendido y el esquema rígido encaja mal con alertas que varían por regla. (c) \emph{Cassandra}: AP y excelente para escrituras masivas, pero el volumen de alertas es bajo y operarla en un portátil o una EC2 pequeña es costoso. (d) \emph{Consultar Gold con Athena}: segundos de latencia y 10 min de frescura, insuficiente para la operación.
 
-\noindent\textbf{Decisión.} MongoDB con replica set de 3 nodos, colección \code{alertas\_fraude}, \code{\_id} determinista (hash de \code{id\_transaccion} o \code{id\_cliente}, regla y ventana) e índices por \code{id\_cliente}, \code{regla} y \code{ts\_alerta}. Posición CAP: MongoDB es por defecto CP, porque hay un único primario y, ante una partición, el lado sin mayoría no acepta escrituras. Las escrituras usan \code{w=majority} para no perder alertas confirmadas. Las lecturas usan \code{readPreference=secondaryPreferred}: si el primario cae, los secundarios siguen respondiendo, aunque con consistencia eventual (segundos de retraso). La elección es, por tanto, CP en escritura y disponibilidad priorizada en lectura, no que MongoDB sea AP en sí. Esto es aceptable porque una alerta con segundos de retraso no cambia la decisión del analista, mientras que perder una alerta sí.
+\adrpart{Decisión} DynamoDB en modo bajo demanda (cobra por solicitud, no por hora), tabla \code{alertas\_fraude} con clave de partición \code{id\_cliente} (la consulta principal es ``alertas de este cliente'') y clave de ordenamiento \code{ts\_alerta\#regla}, más un índice secundario global por \code{regla}. Cada alerta se escribe con \code{PutItem} condicional (\code{attribute\_not\_exists}) sobre una clave determinista, lo que la hace idempotente y permite notificar por SNS solo la primera vez. \textbf{Posición CAP:} DynamoDB guarda cada dato en tres réplicas ubicadas en zonas de disponibilidad distintas y confirma la escritura cuando la mayoría la tiene de forma durable; por defecto, sus lecturas son eventualmente consistentes. FraudLens usa lecturas eventuales para los analistas, es decir, prioriza disponibilidad y latencia (AP): una alerta que aparece segundos después no cambia la decisión del analista, mientras que perderla sí. Para auditoría se puede pedir lectura fuertemente consistente.
 
-\noindent\textbf{Consecuencias.} Durante una elección de primario (de segundos a decenas de segundos) no se pueden escribir alertas; el checkpoint de Spark y la idempotencia del \code{\_id} permiten reintentar sin duplicados. Una lectura desde un secundario puede no mostrar la alerta más reciente. Se pierden joins y transacciones multidocumento complejas, lo cual no afecta a este caso. Tres nodos de MongoDB aumentan el consumo de memoria (se mitiga con caché reducida).
+\adrpart{Consecuencias} Los patrones de acceso quedan fijos en las claves: una consulta no prevista exige un índice nuevo o ir a Gold. El índice por regla es eventualmente consistente. No hay joins: los datos de comercio y cliente se desnormalizan en la alerta. El sistema queda atado a AWS en esta pieza; el costo crece con el número de alertas, que en la demo es mínimo (Anexo B).
 
-% ---------- ADR-05 ----------
 \subsection*{ADR-05: Apache Airflow y modelado de dependencias de los DAG}
 
-\noindent\textbf{Contexto.} Todos los pasos batch deben dispararse según dependencias, fallar de forma limpia si un paso anterior falla (RF-15) y dejar evidencia visible de su estado. Hay dos ritmos distintos: la carga de catálogos (diaria o al llegar un CSV nuevo) y la actualización de Gold (cada 10 minutos, para cumplir los 15 minutos de RNF-04).
+\adrpart{Contexto} Los pasos batch deben dispararse según dependencias, fallar de forma limpia si un paso anterior falla (RF-15) y dejar evidencia de su estado. Hay dos ritmos: catálogos (diario o al llegar un CSV) y Gold (cada 10 min, para cumplir los 15 min de RNF-04).
 
-\noindent\textbf{Alternativas consideradas.} (a) \emph{Cron y scripts:} no modela dependencias, no reintenta con espera creciente y no ofrece interfaz para diagnosticar. (b) \emph{Dagster o Prefect:} son alternativas modernas, pero Airflow es la referencia del curso y el equipo tiene más material para defenderla. (c) \emph{Orquestar con Spark mismo:} mezcla orquestación con cómputo y no cubre extracción desde PostgreSQL ni la verificación del streaming.
+\adrpart{Alternativas consideradas} (a) \emph{Cron y scripts}: sin dependencias, reintentos con espera ni interfaz para diagnosticar. (b) \emph{Dagster o Prefect}: válidas, pero Airflow es la referencia del curso (Lab 4a). (c) \emph{Amazon MWAA}: Airflow administrado, pero cobra por hora encendido (ADR-06).
 
-\noindent\textbf{Decisión.} Airflow 2.x con LocalExecutor y dos DAG. \code{catalogos\_diario}: \code{extract\_batch} $\rightarrow$ \code{load\_bronze} $\rightarrow$ \code{spark\_silver}. \code{fraude\_pipeline} (cada 10 minutos): \code{gold\_dimensions} $\rightarrow$ \code{gold\_fact} $\rightarrow$ \code{quality\_checks} $\rightarrow$ \code{refresh\_metabase}. Cada tarea depende de la anterior con la regla \code{all\_success}, de modo que un fallo detiene los pasos siguientes en lugar de propagar datos corruptos. Cada tarea reintenta 3 veces con espera exponencial y, si sigue fallando, notifica. El job de streaming no es una tarea del DAG porque corre de forma continua; un sensor verifica que siga activo. Las tareas son idempotentes (MERGE), de modo que reejecutarlas no duplica datos.
+\adrpart{Decisión} Airflow 2.9 con LocalExecutor y la imagen del Lab 4a (Java 17, PySpark 3.5.1 y delta-spark 3.1.0), de modo que los jobs batch corren dentro del worker de Airflow. Dos DAG:
+\begin{itemize}\sloppy
+  \item \code{catalogos\_diario} (diario o al llegar un CSV): \code{extract\_postgres} $\rightarrow$ \code{sensor\_csv\_riesgo} (sensor sobre S3) $\rightarrow$ \code{load\_bronze} $\rightarrow$ \code{silver\_catalogos}.
+  \item \code{fraude\_pipeline} (cada 10 min): \code{check\_streaming\_vivo} $\rightarrow$ \code{gold\_dimensiones} $\rightarrow$ \code{gold\_hechos} $\rightarrow$ \code{quality\_checks} $\rightarrow$ \code{registrar\_glue}.
+\end{itemize}
+\noindent Las dependencias usan \code{all\_success}, así que un fallo detiene los pasos siguientes en vez de propagar datos corruptos; cada tarea reintenta 3 veces con espera exponencial y luego notifica por SNS. El streaming no es una tarea del DAG porque corre continuo; \code{check\_streaming\_vivo} lee el latido que el job publica y falla si lleva más de 2 min sin avanzar. Todas las tareas son idempotentes (\code{MERGE}), así que un \code{backfill} no duplica datos.
 
-\noindent\textbf{Consecuencias.} Airflow es un planificador por lotes, no un motor de streaming, por lo que Gold tiene una latencia de hasta 15 minutos. LocalExecutor ejecuta las tareas en una sola máquina y no escala horizontalmente; en producción se cambiaría a CeleryExecutor o KubernetesExecutor. El scheduler, el webserver y su base de metadatos añaden consumo de memoria. El pipeline lineal es simple pero no paraleliza las dimensiones, aspecto que se puede optimizar si el tiempo de ejecución se acerca a los 10 minutos.
+\adrpart{Consecuencias} Airflow es un planificador por lotes: Gold queda hasta 15 min atrás. LocalExecutor no escala horizontalmente; en producción se usaría CeleryExecutor o MWAA. El pipeline lineal no paraleliza las dimensiones, algo optimizable si una ejecución se acerca a los 10 min.
+
+\subsection*{ADR-06: Plataforma de despliegue híbrida en AWS Academy}
+
+\adrpart{Contexto} El pipeline necesita correr a la vez un broker, Spark, el lakehouse, un orquestador y el componente libre. El E2 exige un \code{docker-compose.yml} que levante todo desde cero y una demo en vivo. El equipo tiene AWS Academy Learner Lab con USD 50 para el semestre: las credenciales caducan en unas 4 horas (Lab 1a; Sacre Alzate, 2026), solo se permiten instancias EC2 hasta tamaño \emph{large} y, al terminar la sesión, las instancias pasan a estado detenido (AWS Academy, s.~f.).
+
+\adrpart{Alternativas consideradas} (a) \emph{Todo local con Docker}: no cuesta, pero los datos quedan en un disco local y no en almacenamiento de objetos, que es la base del lakehouse del curso; todo debe caber en el portátil de la demo y no hay camino de crecimiento. (b) \emph{Todo administrado} (MSK o Kinesis, EMR, MWAA, RDS): AWS opera y escala cada pieza, pero cobran por hora encendidos; un clúster EMR olvidado cuesta más de USD 10 (Lab 1a) y ninguna se levanta con \code{docker-compose}. (c) \emph{Híbrido}: cómputo en contenedores sobre EC2 y almacenamiento y consumo en servicios que cobran por uso.
+
+\adrpart{Decisión} Híbrido, con una regla de costo: \textbf{un servicio se usa administrado solo si cobra por uso; si cobra por hora encendido, corre en un contenedor}. Un mismo \code{docker-compose.yml} con dos perfiles: \code{streaming} en la EC2-A (t3.large: Kafka, Spark Structured Streaming y el productor) y \code{batch} en la EC2-B (t3.large: Airflow con Spark batch, PostgreSQL, Metabase y FastAPI). Son dos instancias porque el Learner Lab no permite tamaños mayores a \emph{large} y una sola no alcanza para todo. Bronze, Silver y Gold viven en S3; Glue y Athena sirven Gold; DynamoDB y SNS sirven las alertas. Las EC2 usan el \code{LabInstanceProfile}, sin llaves en el repositorio. El mismo archivo levanta todo en un portátil de 16 GB, plan B si falla la red del salón.
+
+\adrpart{Consecuencias} Cada EC2 es un punto único de falla de su cómputo; los datos no se pierden porque están en S3 y DynamoDB, y el job retoma desde su checkpoint. El Learner Lab detiene las instancias al cerrar la sesión: para la demo hay que iniciarlo con anticipación. Las t3 son de rendimiento ráfaga: una carga sostenida consume créditos de CPU y puede generar cobro extra. El equipo mantiene la matriz de versiones (Tabla 6). El costo estimado es de unos USD 17, con margen dentro de los USD 50 (Anexo B).
 
 % ======================= SECCIÓN 5 =======================
 \section{Plan de implementación}
 
-El sistema se implementa entre S12 y S15 sobre un único docker-compose local. Cada integrante es dueño de un bloque del pipeline de extremo a extremo (código, pruebas y el ADR que lo sustenta) y es par revisor de otro bloque, para que los cuatro puedan defender cualquier parte del sistema en S16.
+El sistema se implementa entre S12 y S15. Cada integrante es dueño de un bloque de extremo a extremo (código, pruebas y el ADR que lo sustenta) y es par revisor de otro, para que los cuatro puedan defender cualquier parte en S16.
 
 \subsection*{5.1 Distribución de responsabilidades}
 
-La Tabla 4 asigna a cada integrante los componentes y requisitos que implementa, junto con su par revisor.
-
-\begin{small}\setstretch{1.0}
-\setlength{\LTpre}{6pt}
-\setlength{\tabcolsep}{4pt}
-\begin{longtable}{@{}P{1.0in}P{2.7in}P{1.4in}P{1.0in}@{}}
+\begin{footnotesize}\setstretch{1.0}\setlength{\tabcolsep}{4pt}
+\setlength{\LTpre}{4pt}\setlength{\LTleft}{0pt}\setlength{\LTpost}{2pt}
+\begin{longtable}{@{}P{1.0in}P{3.3in}P{1.15in}P{0.9in}@{}}
 \caption{Distribución de responsabilidades entre los integrantes}\\
 \toprule
 \textbf{Integrante} & \textbf{Componentes que implementa} & \textbf{Requisitos} & \textbf{Par revisor}\\
@@ -338,23 +348,20 @@ La Tabla 4 asigna a cada integrante los componentes y requisitos que implementa,
 \endfoot
 \bottomrule
 \endlastfoot
-Andrés Felipe Vélez Álvarez & \emph{Ingestión e infraestructura.} \code{docker-compose.yml} (Kafka KRaft con 3 brokers, MinIO, PostgreSQL 16); topics \code{transacciones} (12 particiones, 3 réplicas) y \code{transacciones\_dlq}; productor Python/Faker con escenarios de fraude, duplicados y registros malformados reproducibles (semilla fija); prueba de carga y medición del lag. & RF-01, RNF-01, RNF-02 y RNF-05 (Kafka) & Samuel Samper Cardona\\[2pt]
-Samuel Samper Cardona & \emph{Procesamiento streaming.} Job de Spark Structured Streaming: Kafka $\rightarrow$ Bronze $\rightarrow$ Silver (dedup con watermark, DLQ, cuarentena, MERGE); reglas R1--R3 (ventanas de 5 min en modo update, joins stream-static con Gold); escritura idempotente de alertas en MongoDB y Silver; checkpoints en MinIO; medición de latencia P95. & RF-04 a RF-09, RNF-03, RNF-04, RNF-08 & Sebastián Salazar Henao\\[2pt]
-Sebastián Salazar Henao & \emph{Batch y Lakehouse.} Extracción de PostgreSQL (JDBC) y CSV a landing y Bronze; Silver de catálogos; Gold: \code{dim\_cliente} (SCD2), \code{dim\_comercio}, \code{dim\_dispositivo}, \code{dim\_tiempo}, \code{dim\_regla}, \code{fact\_transacciones} y \code{fact\_alertas}; queries P4--P6; reproceso por \code{rule\_version}; time travel de 90 días; hash de datos personales. & RF-02, RF-03, RF-10 a RF-13, RF-16, RNF-06, RNF-07 & Hellen Yanes Doria\\[2pt]
-Hellen Yanes Doria & \emph{Orquestación y consumo.} DAGs \code{catalogos\_diario} y \code{fraude\_pipeline} en Airflow (dependencias, reintentos, fallo limpio) y sensor del job de streaming; tarea \code{quality\_checks}; MongoDB replica set con índices; API de alertas en FastAPI con webhook; Trino (conector \code{delta\_lake}) y dashboards en Metabase; README. & RF-09 (consulta), RF-14, RF-15, RF-17, RNF-02 (MongoDB), RNF-05 (Airflow) & Andrés Felipe Vélez Álvarez\\
+Andrés Felipe Vélez Álvarez & Infraestructura e ingestión. \code{docker-compose.yml} con perfiles; EC2-A y EC2-B, bucket S3 y \code{LabInstanceProfile}; Kafka KRaft (3 brokers, topics \code{transacciones} y \code{transacciones\_dlq}); productor Python/Faker con escenarios de fraude, duplicados y registros malformados (semilla fija); prueba de carga; control de costos. & RF-01, RNF-01, RNF-02 (Kafka), RNF-05, RNF-09 & Samuel Samper Cardona\\[1pt]
+Samuel Samper Cardona & Procesamiento streaming. Kafka $\rightarrow$ Bronze $\rightarrow$ Silver (dedup con watermark, DLQ, cuarentena, \code{MERGE}); reglas R1--R3; escritura idempotente de alertas en DynamoDB y Silver; notificación SNS; checkpoints en S3; latido del job; medición del P95. & RF-04 a RF-09, RNF-03, RNF-04, RNF-08 & Sebastián Salazar Henao\\[1pt]
+Sebastián Salazar Henao & Batch y lakehouse. Extracción JDBC de PostgreSQL y carga de CSV a Bronze; Silver de catálogos; Gold (dimensiones SCD2 y hechos); consultas P4--P6; registro en Glue; \code{OPTIMIZE ZORDER}; reproceso por \code{rule\_version}; HMAC de datos personales; time travel. & RF-02, RF-03, RF-10 a RF-13, RF-16, RNF-06, RNF-07 & Hellen Yanes Doria\\[1pt]
+Hellen Yanes Doria & Orquestación y consumo. DAG \code{catalogos\_diario} y \code{fraude\_pipeline} (dependencias, reintentos, fallo limpio, \code{check\_streaming\_vivo}, \code{quality\_checks}); tabla DynamoDB e índices; API FastAPI; Athena y dashboards de Metabase; README. & RF-14, RF-15, RF-17, RNF-02 (DynamoDB) & Andrés Felipe Vélez Álvarez\\
 \end{longtable}
-\end{small}
+\end{footnotesize}
 
-\noindent\textbf{Acuerdos de trabajo:} el contrato de datos (esquema JSON del evento y nombres de columnas) se fija en S12 y solo cambia por PR aprobado por los dueños afectados. Todo cambio entra a \code{main} por Pull Request revisado por el par. Cada semana hay una sesión de 30 minutos en la que cada dueño explica su bloque a los demás. Cada integrante registra su uso de agentes de IA en \path{/docs/bitacora_ia.md}.
+\noindent\textbf{Acuerdos de trabajo:} el contrato de datos (esquema JSON del evento y nombres de columnas) se congela en S12 y solo cambia por un PR aprobado por los dueños afectados. Todo cambio entra por Pull Request revisado por el par. Cada semana hay 30 minutos en los que cada dueño explica su bloque a los demás, y cada integrante registra en \path{/docs/bitacora_ia.md} lo que delega a agentes de IA.
 
 \subsection*{5.2 Cronograma e hitos}
 
-La Tabla 5 presenta el trabajo planeado por semana y el hito verificable que cierra cada una.
-
-\begin{small}\setstretch{1.0}
-\setlength{\LTpre}{6pt}
-\setlength{\tabcolsep}{4pt}
-\begin{longtable}{@{}P{0.9in}P{3.3in}P{2.0in}@{}}
+\begin{footnotesize}\setstretch{1.0}\setlength{\tabcolsep}{4pt}
+\setlength{\LTpre}{4pt}\setlength{\LTleft}{0pt}\setlength{\LTpost}{2pt}
+\begin{longtable}{@{}P{0.75in}P{3.45in}P{2.25in}@{}}
 \caption{Cronograma e hitos de implementación}\\
 \toprule
 \textbf{Semana} & \textbf{Trabajo planeado} & \textbf{Hito verificable}\\
@@ -369,22 +376,20 @@ La Tabla 5 presenta el trabajo planeado por semana y el hito verificable que cie
 \endfoot
 \bottomrule
 \endlastfoot
-S12 (actual) & Cierre y entrega del E1 (PDF, diagrama y PR). Contrato de datos; repositorio con carpetas por componente; matriz de versiones fija (Spark, Delta Lake, conectores); docker-compose con Kafka, MinIO, PostgreSQL, MongoDB y Airflow; productor publicando a Kafka. & H1: E1 entregado antes de las 11:59 p.\,m. del día anterior a S13; \code{docker compose up} levanta la base en los 4 equipos y el productor publica en el topic.\\[2pt]
-S13 & Ajustes por la retroalimentación del E1. Streaming Kafka $\rightarrow$ Bronze $\rightarrow$ Silver con dedup, DLQ y cuarentena; catálogos y CSV a Bronze y Silver; prueba de concepto de Trino sobre Delta en MinIO; esqueleto de los DAGs. & H2: Silver tiene tantos \code{id\_transaccion} únicos como eventos producidos; Trino consulta una tabla Delta.\\[2pt]
-S14 & Reglas R1--R3 escribiendo en MongoDB; dimensiones y hechos de Gold; DAGs completos con dependencias y reintentos; API de alertas y webhook. Asesoría opcional con un problema documentado. & H3: primera alerta de extremo a extremo (evento $\rightarrow$ MongoDB $\rightarrow$ API) y P4 respondida con SQL sobre Gold.\\[2pt]
-S15 & Dashboards en Metabase; reproceso por \code{rule\_version}; pruebas de fallo (apagar un broker, matar el job de streaming, forzar un fallo en un DAG); prueba de carga y mediciones reales para las slides. Congelamiento de funcionalidades a mitad de semana; README, bitácora de IA, slides y simulacro de defensa cruzada. & H4: el pipeline corre desde cero en un equipo limpio siguiendo solo el README; P1--P6 respondidas; PR final listo.\\[2pt]
-Día antes de S16 & Ensayo obligatorio de 25 minutos en el equipo de la demo; PR final abierto antes de las 11:59 p.\,m. & H5: la demo corre en vivo sin pasos manuales.\\
+S12 & Entrega del E1. Contrato de datos; repositorio por componentes; matriz de versiones; \code{docker-compose} mínimo (Kafka, Airflow, PostgreSQL); bucket S3 y tabla DynamoDB; medición de memoria en t3.large. & H1: E1 entregado; \code{docker compose up} funciona en las dos EC2 y el productor publica en el topic.\\[1pt]
+S13 & Ajustes por la retroalimentación del E1. Streaming Kafka $\rightarrow$ Bronze $\rightarrow$ Silver con dedup, DLQ y cuarentena; catálogos y CSV a Bronze y Silver; registro de una tabla Delta en Glue y consulta en Athena; esqueleto de los DAG. & H2: Silver tiene tantos \code{id\_transaccion} únicos como eventos producidos; Athena consulta una tabla Delta.\\[1pt]
+S14 & Reglas R1--R3 con DynamoDB y SNS; dimensiones y hechos de Gold; DAG completos con reintentos; API de alertas. Asesoría opcional con un problema documentado. & H3: primera alerta de extremo a extremo (evento $\rightarrow$ DynamoDB $\rightarrow$ correo) y P4 respondida en Athena.\\[1pt]
+S15 & Dashboards en Metabase; reproceso por \code{rule\_version}; pruebas de fallo (broker, streaming, DAG); prueba de carga y mediciones para las slides. Congelamiento a mitad de semana; README, bitácora, slides y simulacro de defensa cruzada. & H4: el pipeline corre desde cero siguiendo solo el README; P1--P6 respondidas; PR final listo.\\[1pt]
+Día antes de S16 & Ensayo de 25 min con el Learner Lab iniciado; PR final abierto antes de las 11:59 p.~m. & H5: la demo corre en vivo sin pasos manuales.\\
 \end{longtable}
-\end{small}
+\end{footnotesize}
 
 \subsection*{5.3 Riesgos técnicos y plan de mitigación}
 
-La Tabla 6 lista los riesgos técnicos identificados, su impacto, la mitigación prevista y quién responde por cada uno.
-
-\begin{small}\setstretch{1.0}
-\setlength{\LTpre}{6pt}
+\begin{footnotesize}\setstretch{1.0}
+\setlength{\LTpre}{4pt}\setlength{\LTleft}{0pt}\setlength{\LTpost}{2pt}
 \setlength{\tabcolsep}{4pt}
-\begin{longtable}{@{}P{1.75in}P{0.6in}P{2.75in}P{1.1in}@{}}
+\begin{longtable}{@{}P{1.95in}P{0.5in}P{2.85in}P{1.05in}@{}}
 \caption{Riesgos técnicos y plan de mitigación}\\
 \toprule
 \textbf{Riesgo} & \textbf{Impacto} & \textbf{Mitigación} & \textbf{Responsable}\\
@@ -394,33 +399,105 @@ La Tabla 6 lista los riesgos técnicos identificados, su impacto, la mitigación
 \textbf{Riesgo} & \textbf{Impacto} & \textbf{Mitigación} & \textbf{Responsable}\\
 \midrule
 \endhead
-\midrule
-\multicolumn{4}{r}{\emph{Continúa en la página siguiente}}\\
-\endfoot
 \bottomrule
 \endlastfoot
-El stack completo (3 brokers, Spark, Airflow, MongoDB x3, Trino, Metabase) no cabe en la RAM de un portátil. & Alto & Medir el consumo en S12; límites de memoria por contenedor, Airflow con LocalExecutor, MongoDB con caché reducida y perfiles de docker compose (núcleo / consumo). La demo corre en el equipo con más RAM. & Andrés Felipe Vélez Álvarez\\[2pt]
-La alerta de R1 supera 30 s si la ventana emite en modo append (espera el cierre de la ventana más el watermark). & Alto & Modo de salida update con \code{foreachBatch} y upsert en MongoDB; trigger de 5 s; medir el P95 desde S14. & Samuel Samper Cardona\\[2pt]
-Al reiniciar el job se reprocesa un micro-batch y se duplican alertas. & Medio & \code{\_id} determinista por alerta con upsert (RNF-03); MERGE en Delta; prueba de reinicio forzado en S15. & Samuel Samper Cardona\\[2pt]
-Versiones incompatibles entre Spark, Delta Lake, conector de Kafka, hadoop-aws y Trino. & Alto & Matriz de versiones fija desde S12 e imagen Docker propia con los JARs; ninguna imagen con la etiqueta \code{latest}. & Andrés Felipe Vélez Álvarez\\[2pt]
-Trino no ve las tablas Delta en MinIO sin un metastore. & Medio & Prueba de concepto en S13 con Hive Metastore en contenedor o metastore de archivos (\code{register\_table}). Plan B: responder P4--P6 con Spark SQL. & Hellen Yanes Doria\\[2pt]
-R2 marca como nuevos dispositivos ya vistos después de la última actualización de Gold (join stream-static). & Medio & \code{fraude\_pipeline} refresca \code{dim\_dispositivo} y el promedio de 30 días cada 10 minutos; se documenta como consecuencia en el ADR-02. & Sebastián Salazar Henao\\[2pt]
-El pipeline falla durante la demo en vivo. & Alto & Guion de demo con escenarios de fraude deterministas y dataset precargado; ensayo el día anterior; todos saben diagnosticar con la UI de Airflow, los logs de Spark y el lag de Kafka. & Todos\\[2pt]
-Un integrante no puede defender partes que no implementó (40 \% del E2). & Alto & Par revisor por bloque, PRs revisados por otro integrante, explicación semanal y simulacro de preguntas en S15. & Todos\\
+Se agota el crédito de AWS Academy y se pierde la cuenta. & Alto & Regla de costo del ADR-06; apagar las EC2 al cerrar cada sesión; revisión semanal del gasto con tope de diseño en USD 45; código y datos de prueba en Git, no solo en la nube. & Andrés Felipe Vélez Álvarez\\[1pt]
+Kafka, Spark, Airflow y Metabase no caben en dos t3.large (8 GB cada una). & Alto & Medir en S12; límites de memoria por contenedor, heap de 512 MB por broker, LocalExecutor; plan B: el portátil con más RAM con el mismo compose. & Andrés Felipe Vélez Álvarez\\[1pt]
+Versiones incompatibles entre Spark, Delta, \code{hadoop-aws} y el conector de Kafka. & Alto & Matriz fija desde S12 (Spark 3.5.1, Delta 3.1.0, \code{hadoop-aws} 3.3.4, \code{cp-kafka} 7.6.0), imágenes propias con los JAR y ninguna etiqueta \code{latest}. & Andrés Felipe Vélez Álvarez\\[1pt]
+La alerta de R1 supera 30 s si la ventana emite en modo \code{append}. & Alto & Modo \code{update} con \code{foreachBatch}, trigger de 5 s; medir el P95 desde S14. & Samuel Samper Cardona\\[1pt]
+Al reiniciar el job se duplican alertas o correos. & Medio & Clave determinista con \code{PutItem} condicional; \code{MERGE} en Delta; prueba de reinicio forzado en S15. & Samuel Samper Cardona\\[1pt]
+Athena no lee una tabla Delta o el registro en Glue falla en el Learner Lab. & Medio & Prueba de concepto en S13 (patrón del Lab 1b); plan B: responder P4--P6 con Spark SQL desde Airflow. & Sebastián Salazar Henao\\[1pt]
+R2 marca como nuevos dispositivos vistos después de la última actualización de Gold. & Bajo & \code{fraude\_pipeline} refresca \code{dim\_dispositivo} cada 10 min; consecuencia documentada en el ADR-02. & Sebastián Salazar Henao\\[1pt]
+Las credenciales caducan o el Learner Lab se detiene durante la demo. & Alto & \code{LabInstanceProfile} en vez de llaves; iniciar el laboratorio 30 min antes; dataset precargado; plan B local. & Hellen Yanes Doria\\[1pt]
+Un integrante no puede defender partes que no implementó (40~\% del E2). & Alto & Par revisor por bloque, PR revisados por otro integrante, explicación semanal y simulacro de preguntas en S15. & Todos\\
 \end{longtable}
-\end{small}
+\end{footnotesize}
 
 % ======================= REFERENCIAS =======================
-\vspace{10pt}
-\begin{center}\textbf{Referencias}\end{center}
-\begingroup
-\setstretch{1.0}
-\setlength{\parindent}{-0.5in}
-\setlength{\leftskip}{0.5in}
+\clearpage
+\section*{Referencias}
+\begin{footnotesize}\setstretch{1.0}
+\setlength{\parindent}{0pt}\setlength{\parskip}{3pt}\everypar{\hangindent=0.4in\hangafter=1}
+
+ABC Economía. (2025, 24 de noviembre). \emph{Nequi se prepara para pico de 80 millones de transacciones diarias}. \url{https://abceconomia.co/2025/11/24/nequi-se-prepara-para-pico-de-80-millones-de-transacciones-diarias/}
+
+Amazon Web Services. (s.~f.). \emph{Get started with Delta Lake tables}. Amazon Athena User Guide. \url{https://docs.aws.amazon.com/athena/latest/ug/delta-lake-tables-getting-started.html}
+
+AWS Academy. (s.~f.). \emph{AWS Academy Learner Lab: Foundational services}. Amazon Web Services.
+
+Banco de la República. (2026, 6 de octubre). \emph{Bre-B cumple un año transformando la forma de realizar pagos y transferencias en Colombia}. \url{https://banrep.gov.co/es/noticias/bre-b-cumple-un-anio-en-colombia}
 
 Congreso de la República de Colombia. (2012, 17 de octubre). \emph{Ley 1581 de 2012: Por la cual se dictan disposiciones generales para la protección de datos personales}. Diario Oficial No. 48.587.
 
+Delta Lake. (s.~f.). \emph{Storage configuration: Amazon S3}. \url{https://docs.delta.io/latest/delta-storage.html}
+
 Kleppmann, M. (2017). \emph{Designing data-intensive applications: The big ideas behind reliable, scalable, and maintainable systems}. O'Reilly Media.
-\endgroup
+
+Sacre Alzate, A. (2026). \emph{ST1630 Sistemas Intensivos en Datos: laboratorios 1a, 1b, 2a, 2b y 4a} [Repositorio de GitHub]. Universidad EAFIT. \url{https://github.com/asacrea/st1630-252}
+
+Suárez, M. C. (2026, 3 de enero). Fraude financiero aumenta en Colombia: el panorama y cómo prevenirlo en 2026. \emph{Bloomberg Línea}. \url{https://www.bloomberglinea.com/latinoamerica/colombia/fraude-financiero-aumenta-en-colombia-el-panorama-y-como-prevenirlo-en-2026/}
+
+Villamil, M. (2026, 6 de mayo). Bre-B disparó sus transacciones en Colombia y ya mueve hasta 5 millones de operaciones diarias. \emph{Infobae}. \url{https://www.infobae.com/colombia/2026/05/06/bre-b-disparo-sus-transacciones-en-colombia-y-ya-mueve-hasta-5-millones-de-operaciones-diarias/}\par
+\end{footnotesize}
+
+% ======================= ANEXOS =======================
+\section*{Anexo A. Dimensionamiento}
+\begin{footnotesize}\setstretch{1.0}
+\begin{tabular}{@{}P{2.1in}P{1.3in}P{2.9in}@{}}
+\toprule
+\textbf{Magnitud} & \textbf{Valor} & \textbf{Cálculo o supuesto}\\
+\midrule
+Referencia de mercado & $\approx$580 tx/s & Nequi: más de 50 millones de transacciones diarias / 86.400 s (ABC Economía, 2025).\\
+Promedio de diseño & 1.000 eventos/s & Referencia con margen para el crecimiento de Bre-B, que triplicó su volumen diario en siete meses (Villamil, 2026).\\
+Pico de diseño & 5.000 eventos/s & 5 veces el promedio: quincena, Día sin IVA, Día de las Velitas.\\
+Eventos al día & $\approx$86 millones & 1.000 $\times$ 86.400 s.\\
+Tamaño por evento & $\approx$1 KB & JSON con 25 campos (cliente, comercio, dispositivo, geolocalización).\\
+Bronze crudo & $\approx$86 GB/día; $\approx$31 TB/año & Antes de compresión; en Parquet comprimido se estima 5 a 8 veces menos.\\
+Carga por partición en el pico & $\approx$420 eventos/s & 5.000 / 12 particiones; un consumidor de Spark sostiene varios miles de eventos/s.\\
+Retención en Kafka & 7 días & Permite releer tras un fin de semana con el laboratorio detenido.\\
+Volumen de la demo & 50 a 500 eventos/s & Lo que permite una t3.large; se reporta el máximo medido.\\
+\bottomrule
+\end{tabular}
+\end{footnotesize}
+
+\section*{Anexo B. Estimación de costos en AWS Academy (us-east-1)}
+\begin{footnotesize}\setstretch{1.0}
+\begin{tabular}{@{}P{1.55in}P{3.3in}P{1.45in}@{}}
+\toprule
+\textbf{Servicio} & \textbf{Supuesto de uso (S12 a S16)} & \textbf{Costo estimado}\\
+\midrule
+EC2 (2 $\times$ t3.large) & 40 horas de sesión cada una $\times$ USD 0,0832/h & USD 6,70\\
+Créditos de CPU t3 & Carga sostenida en pruebas de carga (USD 0,05 por vCPU-h extra) & USD 3,00\\
+EBS gp3 & 2 $\times$ 30 GB durante un mes $\times$ USD 0,08/GB-mes & USD 4,80\\
+Amazon S3 & Menos de 20 GB y solicitudes PUT de los micro-batches & USD 2,00\\
+Athena y Glue & USD 5 por TB escaneado; cientos de consultas de pocos MB; catálogo dentro de la capa gratuita & menos de USD 0,50\\
+DynamoDB bajo demanda & Miles de alertas (USD 0,625 por millón de escrituras tras la rebaja de 2024) & menos de USD 0,10\\
+Amazon SNS & Pocos cientos de correos & menos de USD 0,10\\
+\midrule
+\textbf{Total} & & \textbf{$\approx$ USD 17 de 50}\\
+\bottomrule
+\end{tabular}
+
+\vspace{3pt}
+\noindent\emph{Nota.} Precios de lista on-demand en us-east-1 a octubre de 2026; deben verificarse en la calculadora de AWS antes de S13. Con MSK, EMR y MWAA encendidos las mismas 40 horas, el costo superaría el crédito disponible.
+\end{footnotesize}
+
+\section*{Anexo C. Bitácora de delegación}
+\begin{footnotesize}\setstretch{1.0}
+\begin{tabular}{@{}P{2.2in}P{0.85in}P{3.25in}@{}}
+\toprule
+\textbf{Tarea} & \textbf{¿Delegado?} & \textbf{Justificación}\\
+\midrule
+Definición del problema y preguntas P1--P6 (Sección 1) & Parcial & Redactada por el equipo. El agente (Claude) buscó cifras de mercado con su fuente (Banco de la República, Asobancaria, Nequi) y las incorporó.\\[1pt]
+Requisitos funcionales y no funcionales (Sección 2) & Parcial & Redactados por el equipo. El agente señaló inconsistencias (RF-04 frente a RNF-03, CAP por componente, RF faltante para la API) y los adaptó al despliegue en AWS.\\[1pt]
+Elección de tecnologías (Kafka, Spark, Delta Lake, Airflow) & No & Decisión de diseño central tomada por el equipo antes de usar el agente.\\[1pt]
+Despliegue híbrido en AWS y cambio de MongoDB a DynamoDB & Parcial & Propuestos por el agente tras revisar los laboratorios del curso y el límite de instancias del Learner Lab; el equipo los aprobó.\\[1pt]
+Redacción de los ADR (Sección 4) & Parcial & El equipo definió contexto, alternativas y decisión; el agente ayudó a redactar y a citar los conceptos del curso.\\[1pt]
+Plan de implementación (Sección 5) & Parcial & Reparto de bloques acordado por el equipo; el agente redactó el cronograma y la tabla de riesgos.\\[1pt]
+Dibujo del diagrama en draw.io y exportación & Sí & El agente generó el .drawio a partir del diseño del equipo con \texttt{build\_diagram.py}. Bajo valor pedagógico.\\[1pt]
+Maquetación en LaTeX, referencias APA y anexos & Sí & Tarea de formato; bajo valor pedagógico.\\[1pt]
+\bottomrule
+\end{tabular}
+\end{footnotesize}
 
 \end{document}
