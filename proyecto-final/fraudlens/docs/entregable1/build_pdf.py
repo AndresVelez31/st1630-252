@@ -15,8 +15,8 @@ BITACORA = [
      "El equipo definió contexto, alternativas y decisión; el agente ayudó a redactar y a citar los conceptos del curso."),
     ("Plan de implementación (Sección 5)", "Parcial",
      "Reparto de bloques acordado por el equipo; el agente redactó el cronograma y la tabla de riesgos."),
-    ("Dibujo del diagrama en draw.io y exportación", "Sí",
-     "El agente generó el .drawio a partir del diseño del equipo con \\texttt{build\\_diagram.py}. Bajo valor pedagógico."),
+    ("Dibujo del diagrama en draw.io (notación AWS) y exportación", "Sí",
+     "El agente generó el .drawio con los íconos oficiales de AWS a partir del diseño del equipo (\\texttt{build\\_diagram.py}). Bajo valor pedagógico."),
     ("Maquetación en LaTeX, referencias APA y anexos", "Sí", "Tarea de formato; bajo valor pedagógico."),
 ]
 

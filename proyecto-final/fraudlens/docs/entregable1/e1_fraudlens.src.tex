@@ -234,7 +234,7 @@ RNF-09 Costo & El proyecto completo (desarrollo, pruebas y demo) debe costar men
 % ======================= SECCIÓN 3 =======================
 \section{Diagrama de arquitectura de datos por capas}
 
-La Figura 1 (página siguiente) muestra las cinco capas del pipeline. Cada caja nombra la herramienta concreta y una etiqueta indica dónde se despliega: \textbf{EC2-A} (Kafka y Spark Structured Streaming), \textbf{EC2-B} (Airflow con el Spark batch, Metabase, FastAPI y el PostgreSQL que simula la base operacional) o un servicio de AWS que cobra por uso (S3, Glue, Athena, DynamoDB, SNS). Los archivos fuente están en el repositorio (\path{arquitectura.drawio}, \path{arquitectura.png} y \path{arquitectura.svg}) y el diagrama se puede editar en línea desde el enlace de la nota.
+La Figura 1 (página siguiente) muestra las cinco capas del pipeline como columnas y usa la notación oficial de AWS (AWS Architecture Icons de draw.io) para el despliegue: los grupos \emph{AWS Cloud} y \emph{Region}, un grupo \emph{EC2 instance contents} por instancia (\textbf{EC2-A}: productor, Kafka y Spark Structured Streaming; \textbf{EC2-B}: PostgreSQL, Airflow y Spark batch; \textbf{EC2-C}: Metabase y FastAPI), el bucket de S3 con los prefijos Bronze, Silver y Gold, y los íconos de DynamoDB, Athena, Glue Data Catalog y SNS. El software abierto aparece con el ícono de contenedor. Cada componente nombra la herramienta concreta. Los archivos fuente están en el repositorio (\path{arquitectura.drawio}, \path{arquitectura.png} y \path{arquitectura.svg}) y el diagrama se puede editar en línea desde el enlace de la nota.
 
 \afterpage{%
 \clearpage
@@ -320,9 +320,9 @@ Cada decisión no trivial se documenta con un ADR de cuatro partes. Los identifi
 
 \adrpart{Alternativas consideradas} (a) \emph{Todo local con Docker}: no cuesta, pero los datos quedan en un disco local y no en almacenamiento de objetos, que es la base del lakehouse del curso; todo debe caber en el portátil de la demo y no hay camino de crecimiento. (b) \emph{Todo administrado} (MSK o Kinesis, EMR, MWAA, RDS): AWS opera y escala cada pieza, pero cobran por hora encendidos; un clúster EMR olvidado cuesta más de USD 10 (Lab 1a) y ninguna se levanta con \code{docker-compose}. (c) \emph{Híbrido}: cómputo en contenedores sobre EC2 y almacenamiento y consumo en servicios que cobran por uso.
 
-\adrpart{Decisión} Híbrido, con una regla de costo: \textbf{un servicio se usa administrado solo si cobra por uso; si cobra por hora encendido, corre en un contenedor}. Un mismo \code{docker-compose.yml} con dos perfiles: \code{streaming} en la EC2-A (t3.large: Kafka, Spark Structured Streaming y el productor) y \code{batch} en la EC2-B (t3.large: Airflow con Spark batch, PostgreSQL, Metabase y FastAPI). Son dos instancias porque el Learner Lab no permite tamaños mayores a \emph{large} y una sola no alcanza para todo. Bronze, Silver y Gold viven en S3; Glue y Athena sirven Gold; DynamoDB y SNS sirven las alertas. Las EC2 usan el \code{LabInstanceProfile}, sin llaves en el repositorio. El mismo archivo levanta todo en un portátil de 16 GB, plan B si falla la red del salón.
+\adrpart{Decisión} Híbrido, con una regla de costo: \textbf{un servicio se usa administrado solo si cobra por uso; si cobra por hora encendido, corre en un contenedor}. Un mismo \code{docker-compose.yml} con tres perfiles: \code{streaming} en la EC2-A (t3.large: Kafka, Spark Structured Streaming y el productor), \code{batch} en la EC2-B (t3.large: Airflow con Spark batch y PostgreSQL) y \code{consumo} en la EC2-C (t3.medium: Metabase y FastAPI). Se reparte en tres instancias porque el Learner Lab no permite tamaños mayores a \emph{large}, y separar el consumo evita que los tableros de los analistas compitan con la carga batch. Bronze, Silver y Gold viven en S3; Glue y Athena sirven Gold; DynamoDB y SNS sirven las alertas. Las EC2 usan el \code{LabInstanceProfile}, sin llaves en el repositorio. El mismo archivo levanta todo en un portátil de 16 GB, plan B si falla la red del salón.
 
-\adrpart{Consecuencias} Cada EC2 es un punto único de falla de su cómputo; los datos no se pierden porque están en S3 y DynamoDB, y el job retoma desde su checkpoint. El Learner Lab detiene las instancias al cerrar la sesión: para la demo hay que iniciarlo con anticipación. Las t3 son de rendimiento ráfaga: una carga sostenida consume créditos de CPU y puede generar cobro extra. El equipo mantiene la matriz de versiones (Tabla 6). El costo estimado es de unos USD 17, con margen dentro de los USD 50 (Anexo B).
+\adrpart{Consecuencias} Cada EC2 es un punto único de falla de su cómputo; los datos no se pierden porque están en S3 y DynamoDB, y el job retoma desde su checkpoint. El Learner Lab detiene las instancias al cerrar la sesión: para la demo hay que iniciarlo con anticipación. Las t3 son de rendimiento ráfaga: una carga sostenida consume créditos de CPU y puede generar cobro extra. El equipo mantiene la matriz de versiones (Tabla 6). El costo estimado es de unos USD 21, con margen dentro de los USD 50 (Anexo B).
 
 % ======================= SECCIÓN 5 =======================
 \section{Plan de implementación}
@@ -348,10 +348,10 @@ El sistema se implementa entre S12 y S15. Cada integrante es dueño de un bloque
 \endfoot
 \bottomrule
 \endlastfoot
-Andrés Felipe Vélez Álvarez & Infraestructura e ingestión. \code{docker-compose.yml} con perfiles; EC2-A y EC2-B, bucket S3 y \code{LabInstanceProfile}; Kafka KRaft (3 brokers, topics \code{transacciones} y \code{transacciones\_dlq}); productor Python/Faker con escenarios de fraude, duplicados y registros malformados (semilla fija); prueba de carga; control de costos. & RF-01, RNF-01, RNF-02 (Kafka), RNF-05, RNF-09 & Samuel Samper Cardona\\[1pt]
+Andrés Felipe Vélez Álvarez & Infraestructura e ingestión. \code{docker-compose.yml} con perfiles; las tres EC2, bucket S3 y \code{LabInstanceProfile}; Kafka KRaft (3 brokers, topics \code{transacciones} y \code{transacciones\_dlq}); productor Python/Faker con escenarios de fraude, duplicados y registros malformados (semilla fija); prueba de carga; control de costos. & RF-01, RNF-01, RNF-02 (Kafka), RNF-05, RNF-09 & Samuel Samper Cardona\\[1pt]
 Samuel Samper Cardona & Procesamiento streaming. Kafka $\rightarrow$ Bronze $\rightarrow$ Silver (dedup con watermark, DLQ, cuarentena, \code{MERGE}); reglas R1--R3; escritura idempotente de alertas en DynamoDB y Silver; notificación SNS; checkpoints en S3; latido del job; medición del P95. & RF-04 a RF-09, RNF-03, RNF-04, RNF-08 & Sebastián Salazar Henao\\[1pt]
 Sebastián Salazar Henao & Batch y lakehouse. Extracción JDBC de PostgreSQL y carga de CSV a Bronze; Silver de catálogos; Gold (dimensiones SCD2 y hechos); consultas P4--P6; registro en Glue; \code{OPTIMIZE ZORDER}; reproceso por \code{rule\_version}; HMAC de datos personales; time travel. & RF-02, RF-03, RF-10 a RF-13, RF-16, RNF-06, RNF-07 & Hellen Yanes Doria\\[1pt]
-Hellen Yanes Doria & Orquestación y consumo. DAG \code{catalogos\_diario} y \code{fraude\_pipeline} (dependencias, reintentos, fallo limpio, \code{check\_streaming\_vivo}, \code{quality\_checks}); tabla DynamoDB e índices; API FastAPI; Athena y dashboards de Metabase; README. & RF-14, RF-15, RF-17, RNF-02 (DynamoDB) & Andrés Felipe Vélez Álvarez\\
+Hellen Yanes Doria & Orquestación y consumo. DAG \code{catalogos\_diario} y \code{fraude\_pipeline} (dependencias, reintentos, fallo limpio, \code{check\_streaming\_vivo}, \code{quality\_checks}); tabla DynamoDB e índices; API FastAPI y Metabase en la EC2-C; consultas en Athena; README. & RF-14, RF-15, RF-17, RNF-02 (DynamoDB) & Andrés Felipe Vélez Álvarez\\
 \end{longtable}
 \end{footnotesize}
 
@@ -376,7 +376,7 @@ Hellen Yanes Doria & Orquestación y consumo. DAG \code{catalogos\_diario} y \co
 \endfoot
 \bottomrule
 \endlastfoot
-S12 & Entrega del E1. Contrato de datos; repositorio por componentes; matriz de versiones; \code{docker-compose} mínimo (Kafka, Airflow, PostgreSQL); bucket S3 y tabla DynamoDB; medición de memoria en t3.large. & H1: E1 entregado; \code{docker compose up} funciona en las dos EC2 y el productor publica en el topic.\\[1pt]
+S12 & Entrega del E1. Contrato de datos; repositorio por componentes; matriz de versiones; \code{docker-compose} mínimo (Kafka, Airflow, PostgreSQL); bucket S3 y tabla DynamoDB; medición de memoria por instancia. & H1: E1 entregado; \code{docker compose up} funciona en las tres EC2 y el productor publica en el topic.\\[1pt]
 S13 & Ajustes por la retroalimentación del E1. Streaming Kafka $\rightarrow$ Bronze $\rightarrow$ Silver con dedup, DLQ y cuarentena; catálogos y CSV a Bronze y Silver; registro de una tabla Delta en Glue y consulta en Athena; esqueleto de los DAG. & H2: Silver tiene tantos \code{id\_transaccion} únicos como eventos producidos; Athena consulta una tabla Delta.\\[1pt]
 S14 & Reglas R1--R3 con DynamoDB y SNS; dimensiones y hechos de Gold; DAG completos con reintentos; API de alertas. Asesoría opcional con un problema documentado. & H3: primera alerta de extremo a extremo (evento $\rightarrow$ DynamoDB $\rightarrow$ correo) y P4 respondida en Athena.\\[1pt]
 S15 & Dashboards en Metabase; reproceso por \code{rule\_version}; pruebas de fallo (broker, streaming, DAG); prueba de carga y mediciones para las slides. Congelamiento a mitad de semana; README, bitácora, slides y simulacro de defensa cruzada. & H4: el pipeline corre desde cero siguiendo solo el README; P1--P6 respondidas; PR final listo.\\[1pt]
@@ -402,7 +402,7 @@ Día antes de S16 & Ensayo de 25 min con el Learner Lab iniciado; PR final abier
 \bottomrule
 \endlastfoot
 Se agota el crédito de AWS Academy y se pierde la cuenta. & Alto & Regla de costo del ADR-06; apagar las EC2 al cerrar cada sesión; revisión semanal del gasto con tope de diseño en USD 45; código y datos de prueba en Git, no solo en la nube. & Andrés Felipe Vélez Álvarez\\[1pt]
-Kafka, Spark, Airflow y Metabase no caben en dos t3.large (8 GB cada una). & Alto & Medir en S12; límites de memoria por contenedor, heap de 512 MB por broker, LocalExecutor; plan B: el portátil con más RAM con el mismo compose. & Andrés Felipe Vélez Álvarez\\[1pt]
+Kafka y Spark no caben en la EC2-A, o Airflow y Spark batch en la EC2-B (t3.large, 8 GB). & Alto & Medir en S12; límites de memoria por contenedor, heap de 512 MB por broker, LocalExecutor; plan B: el portátil con más RAM con el mismo compose. & Andrés Felipe Vélez Álvarez\\[1pt]
 Versiones incompatibles entre Spark, Delta, \code{hadoop-aws} y el conector de Kafka. & Alto & Matriz fija desde S12 (Spark 3.5.1, Delta 3.1.0, \code{hadoop-aws} 3.3.4, \code{cp-kafka} 7.6.0), imágenes propias con los JAR y ninguna etiqueta \code{latest}. & Andrés Felipe Vélez Álvarez\\[1pt]
 La alerta de R1 supera 30 s si la ventana emite en modo \code{append}. & Alto & Modo \code{update} con \code{foreachBatch}, trigger de 5 s; medir el P95 desde S14. & Samuel Samper Cardona\\[1pt]
 Al reiniciar el job se duplican alertas o correos. & Medio & Clave determinista con \code{PutItem} condicional; \code{MERGE} en Delta; prueba de reinicio forzado en S15. & Samuel Samper Cardona\\[1pt]
@@ -466,15 +466,15 @@ Volumen de la demo & 50 a 500 eventos/s & Lo que permite una t3.large; se report
 \toprule
 \textbf{Servicio} & \textbf{Supuesto de uso (S12 a S16)} & \textbf{Costo estimado}\\
 \midrule
-EC2 (2 $\times$ t3.large) & 40 horas de sesión cada una $\times$ USD 0,0832/h & USD 6,70\\
+EC2 (2 $\times$ t3.large y 1 $\times$ t3.medium) & 40 horas de sesión cada una $\times$ USD 0,0832/h y USD 0,0416/h & USD 8,30\\
 Créditos de CPU t3 & Carga sostenida en pruebas de carga (USD 0,05 por vCPU-h extra) & USD 3,00\\
-EBS gp3 & 2 $\times$ 30 GB durante un mes $\times$ USD 0,08/GB-mes & USD 4,80\\
+EBS gp3 & 80 GB (30 + 30 + 20) durante un mes $\times$ USD 0,08/GB-mes & USD 6,40\\
 Amazon S3 & Menos de 20 GB y solicitudes PUT de los micro-batches & USD 2,00\\
 Athena y Glue & USD 5 por TB escaneado; cientos de consultas de pocos MB; catálogo dentro de la capa gratuita & menos de USD 0,50\\
 DynamoDB bajo demanda & Miles de alertas (USD 0,625 por millón de escrituras tras la rebaja de 2024) & menos de USD 0,10\\
 Amazon SNS & Pocos cientos de correos & menos de USD 0,10\\
 \midrule
-\textbf{Total} & & \textbf{$\approx$ USD 17 de 50}\\
+\textbf{Total} & & \textbf{$\approx$ USD 21 de 50}\\
 \bottomrule
 \end{tabular}
 

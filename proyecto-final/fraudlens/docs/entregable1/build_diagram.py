@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Genera arquitectura.drawio (editable en app.diagrams.net) y enlace_drawio.txt.
+"""Genera arquitectura.drawio (notación AWS de draw.io) y enlace_drawio.txt.
 
 Uso: python3 build_diagram.py [carpeta_salida]
-El PNG y el SVG se exportan desde este mismo .drawio (draw.io o render_diagram.js).
+El PNG y el SVG se exportan desde el .drawio con render_diagram.js (visor oficial de draw.io).
 """
 import base64
 import sys
@@ -11,26 +11,31 @@ import zlib
 from xml.sax.saxutils import escape
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "."
-
-W, H = 1530, 1030
-LANE_W, BOX_W, X0, GAP = 292, 268, 12, 13
-LX = [X0 + i * (LANE_W + GAP) for i in range(5)]
-BX = [x + 12 for x in LX]
+W, H = 1740, 1150
 FONT = "Helvetica"
+INK = "#232F3E"
+COLW = 290
+CX = [40, 345, 650, 985, 1290]          # x de cada columna (capa)
+LAYERS = [("1 · FUENTE", "#0F6E56", "#F1F8F5"), ("2 · INGESTIÓN", "#185FA5", "#F1F5FB"),
+          ("3 · PROCESAMIENTO", "#854F0B", "#FCF7EF"), ("4 · ALMACENAMIENTO", "#534AB7", "#F5F4FC"),
+          ("5 · CONSUMO", "#993556", "#FCF2F6")]
+ALERT, LOOKUP = "#D13212", "#7D8998"
 
-LANES = [  # nombre, color fuerte, color suave
-    ("1 · FUENTE", "#0F6E56", "#EEF6F2"),
-    ("2 · INGESTIÓN", "#185FA5", "#EEF3FA"),
-    ("3 · PROCESAMIENTO", "#854F0B", "#FBF4EA"),
-    ("4 · ALMACENAMIENTO", "#534AB7", "#F2F1FB"),
-    ("5 · CONSUMO", "#993556", "#FBEFF3"),
-]
-DEPLOY = {  # etiqueta de despliegue: texto, relleno, borde/texto
-    "A": ("EC2-A", "#E2F0EE", "#2E7D78"),
-    "B": ("EC2-B", "#ECE8FA", "#5B4BB7"),
-    "AWS": ("AWS por uso", "#FFF1D6", "#B86E00"),
-}
-ALERT, LOOKUP, ORQ = "#C0392B", "#6B6B6B", "#5F5E5A"
+# Estilos de la biblioteca AWS 2023 de draw.io (Sidebar-AWS4.js)
+PTS = ("points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],"
+       "[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];")
+RES = (PTS + "sketch=0;outlineConnect=0;fontColor=#232F3E;fillColor={c};strokeColor=#ffffff;dashed=0;"
+       "verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;"
+       "shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.{i};")
+ICON = ("sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor={c};strokeColor=none;dashed=0;"
+        "verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;"
+        "pointerEvents=1;shape=mxgraph.aws4.{i};")
+GROUP = ("points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],"
+         "[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=13;"
+         "fontStyle=1;container=0;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;"
+         "grIcon=mxgraph.aws4.{g};strokeColor={s};fillColor={f};verticalAlign=top;align=left;spacingLeft=30;"
+         "fontColor={fc};dashed={d};fontFamily=" + FONT + ";")
+C_COMPUTE, C_STORAGE, C_DB, C_ANALYTICS, C_INTEG = "#ED7100", "#7AA116", "#C925D1", "#8C4FFF", "#E7157B"
 
 cells = []
 
@@ -41,10 +46,15 @@ def vertex(cid, value, x, y, w, h, style):
         f'<mxGeometry x="{x}" y="{y}" width="{w}" height="{h}" as="geometry"/></mxCell>')
 
 
-def edge(cid, src, tgt, color, dashed=False, label="", pts=(), exit_=None, entry=None, width=2):
-    st = (f"edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor={color};strokeWidth={width};"
-          f"endArrow=block;endFill=1;endSize=7;fontSize=11;fontColor={color};fontStyle=1;"
-          f"labelBackgroundColor=#FFFFFF;fontFamily={FONT};")
+def text(cid, value, x, y, w, h, size=12, color=INK, align="left", bold=False):
+    vertex(cid, value, x, y, w, h,
+           f"text;html=1;fillColor=none;strokeColor=none;align={align};verticalAlign=middle;whiteSpace=wrap;"
+           f"fontSize={size};fontColor={color};fontStyle={1 if bold else 0};fontFamily={FONT};")
+
+
+def edge(cid, src, tgt, color=INK, dashed=False, pts=(), exit_=None, entry=None, width=1.8, label=""):
+    st = (f"edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor={color};strokeWidth={width};endArrow=block;"
+          f"endFill=1;endSize=6;fontSize=11;fontColor={color};labelBackgroundColor=#FFFFFF;fontFamily={FONT};")
     if dashed:
         st += "dashed=1;dashPattern=6 4;"
     if exit_:
@@ -53,187 +63,189 @@ def edge(cid, src, tgt, color, dashed=False, label="", pts=(), exit_=None, entry
         st += f"entryX={entry[0]};entryY={entry[1]};entryDx=0;entryDy=0;"
     geo = '<mxGeometry relative="1" as="geometry">'
     if pts:
-        geo += '<Array as="points">' + "".join(f'<mxPoint x="{px}" y="{py}"/>' for px, py in pts) + "</Array>"
-    geo += "</mxGeometry>"
-    cells.append(f'<mxCell id="{cid}" value="{escape(label)}" style="{st}" edge="1" parent="1" '
-                 f'source="{src}" target="{tgt}">{geo}</mxCell>')
+        geo += '<Array as="points">' + "".join(f'<mxPoint x="{a}" y="{b}"/>' for a, b in pts) + "</Array>"
+    cells.append(f'<mxCell id="{cid}" value="{escape(label)}" style="{st}" edge="1" parent="1" source="{src}" '
+                 f'target="{tgt}">{geo + "</mxGeometry>"}</mxCell>')
 
 
-def box(cid, lane, y, h, title, lines, deploy):
-    color = LANES[lane][1]
+def card(cid, layer, x, y, w, h, icon_style, title, lines, icon=40):
+    """Tarjeta de componente: borde del color de la capa, ícono AWS a la izquierda y texto."""
+    color = LAYERS[layer][1]
+    vertex(cid, "", x, y, w, h, f"rounded=1;arcSize=4;html=1;fillColor=#FFFFFF;strokeColor={color};strokeWidth=1.6;")
+    vertex(cid + "_i", "", x + 8, y + 9, icon, icon, icon_style)
     body = "<br>".join(lines)
-    val = (f'<div style="text-align:left"><b style="color:{color};font-size:14px">{title}</b>'
-           f'<br><span style="font-size:12.5px;color:#2A2A2A;line-height:1.35">{body}</span></div>')
-    vertex(cid, val, BX[lane], y, BOX_W, h,
-           f"rounded=1;arcSize=5;whiteSpace=wrap;html=1;align=left;verticalAlign=top;spacingLeft=9;"
-           f"spacingTop=5;spacingRight=6;fillColor=#FFFFFF;strokeColor={color};strokeWidth=2;fontFamily={FONT};")
-    text, fill, stroke = DEPLOY[deploy]
-    pw = 46 if deploy != "AWS" else 78
-    vertex(cid + "_tag", text, BX[lane] + BOX_W - pw - 6, y + h - 23, pw, 17,
-           f"rounded=1;arcSize=50;html=1;fillColor={fill};strokeColor={stroke};fontColor={stroke};"
-           f"fontSize=10;fontStyle=1;align=center;verticalAlign=middle;fontFamily={FONT};")
+    val = (f'<b style="font-size:13.5px;color:{color}">{title}</b><br>'
+           f'<span style="font-size:11.8px;color:#232F3E">{body}</span>')
+    vertex(cid + "_t", val, x + icon + 14, y + 3, w - icon - 18, h - 6,
+           f"text;html=1;fillColor=none;strokeColor=none;align=left;verticalAlign=top;whiteSpace=wrap;"
+           f"spacingTop=2;fontFamily={FONT};")
 
 
-# ---------- Título ----------
-vertex("title", "<b>FraudLens · Arquitectura de datos por capas</b>", 12, 8, 1100, 28,
-       f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;fontSize=21;fontColor=#1F1F1F;fontFamily={FONT};")
-vertex("subtitle",
-       "Detección de fraude en pagos digitales (fintech colombiana) · streaming + batch sobre lakehouse "
-       "Bronze/Silver/Gold · despliegue híbrido en AWS Academy (us-east-1)",
-       12, 36, 1300, 20, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;fontSize=13;fontColor=#5F5E5A;fontFamily={FONT};")
+CONTAINER = ICON.format(c=C_COMPUTE, i="container_1")
 
-# ---------- Carriles ----------
-for i, (name, strong, soft) in enumerate(LANES):
-    vertex(f"lane{i}", "", LX[i], 66, LANE_W, 712, f"rounded=1;arcSize=3;fillColor={soft};strokeColor=none;html=1;")
-    vertex(f"hdr{i}", name, BX[i], 74, BOX_W, 34,
-           f"rounded=1;whiteSpace=wrap;html=1;fillColor={strong};strokeColor={strong};fontColor=#FFFFFF;"
-           f"fontStyle=1;fontSize=15;fontFamily={FONT};")
+# ---------- Título y carriles de capas ----------
+text("title", "<b>FraudLens · Arquitectura de datos por capas en AWS</b>", 20, 8, 1200, 28, size=21)
+text("subtitle", "Detección de fraude en pagos digitales (fintech colombiana) · streaming + batch sobre lakehouse "
+     "Bronze/Silver/Gold · AWS Academy Learner Lab · notación AWS Architecture Icons", 20, 34, 1400, 20,
+     size=12.5, color="#5F6B7A")
+for i, (name, strong, soft) in enumerate(LAYERS):
+    vertex(f"lane{i}", "", CX[i] - 8, 62, COLW + 16, 838, f"rounded=0;fillColor={soft};strokeColor=none;html=1;")
+    vertex(f"hdr{i}", name, CX[i], 68, COLW, 30,
+           f"rounded=1;arcSize=20;html=1;fillColor={strong};strokeColor=none;fontColor=#FFFFFF;fontStyle=1;"
+           f"fontSize=14;fontFamily={FONT};")
+
+# ---------- Grupos AWS ----------
+vertex("g_cloud", "AWS Cloud", 22, 112, CX[4] + COLW - 4, 778,
+       GROUP.format(g="group_aws_cloud_alt", s=INK, f="none", fc=INK, d=0))
+vertex("g_region", "Region us-east-1 (AWS Academy Learner Lab)", 30, 146, CX[4] + COLW - 20, 736,
+       GROUP.format(g="group_region", s="#00A4A6", f="none", fc="#147EBA", d=1))
+vertex("g_ec2a", "EC2-A · t3.large · perfil streaming (docker compose)", 36, 186, CX[2] + COLW - 30, 288,
+       GROUP.format(g="group_ec2_instance_contents", s="#D86613", f="none", fc="#D86613", d=0))
+vertex("g_ec2b", "EC2-B · t3.large · perfil batch y orquestación (docker compose)", 36, 494, CX[2] + COLW - 30, 200,
+       GROUP.format(g="group_ec2_instance_contents", s="#D86613", f="none", fc="#D86613", d=0))
+vertex("g_ec2c", "EC2-C · t3.medium · consumo", CX[4] - 6, 596, COLW + 12, 274,
+       GROUP.format(g="group_ec2_instance_contents", s="#D86613", f="none", fc="#D86613", d=0))
+vertex("g_s3", "", CX[3] - 6, 186, COLW + 12, 420,
+       f"rounded=0;html=1;fillColor=none;strokeColor={C_STORAGE};strokeWidth=1.5;dashed=1;dashPattern=8 4;")
+vertex("g_s3_i", "", CX[3] - 6, 186, 26, 26, RES.format(c=C_STORAGE, i="s3"))
+text("g_s3_t", "<b>Amazon S3</b> · bucket fraudlens-lake", CX[3] + 26, 186, COLW - 30, 26, size=13, color="#3F8624")
 
 # ---------- 1 · Fuente ----------
-box("app", 0, 122, 116, "App móvil / API de pagos",
-    ["Eventos de transacción en JSON", "~1.000 ev/s (pico 5.000 ev/s)", "Simulado: productor Python + Faker",
-     "con escenarios de fraude y duplicados"], "A")
-box("pg", 0, 262, 100, "PostgreSQL 16 (operacional)",
-    ["Clientes y comercios (relacional)", "Contenedor que simula la BD de la app", "Extracción batch diaria"], "B")
-box("csv", 0, 386, 100, "Listas de riesgo (CSV)",
-    ["Comercios y dispositivos en lista negra", "Se publican en S3 landing/",
-     "Versión nueva periódica"], "AWS")
+card("prod", 0, CX[0], 226, COLW - 14, 116, CONTAINER, "Productor de transacciones",
+     ["Python + Faker (simula la app y la API)", "Eventos JSON · ~1.000 ev/s, pico 5.000",
+      "Escenarios de fraude, duplicados", "y JSON malformado (semilla fija)"])
+card("pg", 0, CX[0], 534, COLW - 14, 96, CONTAINER, "PostgreSQL 16 (operacional)",
+     ["Clientes y comercios (relacional)", "Contenedor que simula la BD de la app", "Extracción batch diaria"])
+card("csv", 0, CX[0], 724, COLW - 14, 96, ICON.format(c=C_STORAGE, i="bucket_with_objects"),
+     "Listas de riesgo (CSV)", ["Comercios y dispositivos en lista negra", "Se suben a s3://…/landing/",
+                                "Versión nueva periódica"])
 
 # ---------- 2 · Ingestión ----------
-box("kafka", 1, 122, 196, "Apache Kafka 3 brokers (KRaft)",
-    ["Topic transacciones · 12 particiones", "Clave id_cliente · replicación 3",
-     "acks=all · min.insync.replicas=2 (CP)", "Productor idempotente · retención 7 d",
-     "Garantía: at-least-once", "Topic transacciones_dlq (inválidos)", "Imagen cp-kafka 7.6.0 (Lab 2a)"], "A")
-box("extract", 1, 340, 146, "Airflow + PySpark (extracción)",
-    ["JDBC PostgreSQL → Bronze (diario)", "Sensor S3: CSV nuevo → Bronze",
-     "MERGE idempotente (at-least-once)", "Reintentos 3 · espera exponencial"], "B")
+card("kafka", 1, CX[1], 226, COLW - 14, 232, CONTAINER, "Apache Kafka · 3 brokers KRaft",
+     ["cp-kafka 7.6.0 (Lab 2a)", "Topic transacciones · 12 particiones", "Clave id_cliente · replicación 3",
+      "acks=all · min.insync.replicas=2 (CP)", "Productor idempotente", "Retención 7 días (replay)",
+      "Garantía at-least-once", "Topic transacciones_dlq (inválidos)"])
+card("extract", 1, CX[1], 534, COLW - 14, 136, CONTAINER, "Airflow + PySpark (extracción)",
+     ["JDBC PostgreSQL → Bronze (diario)", "S3KeySensor: CSV nuevo → Bronze",
+      "MERGE idempotente (at-least-once)", "3 reintentos · espera exponencial"])
 
 # ---------- 3 · Procesamiento ----------
-box("stream", 2, 122, 226, "Spark Structured Streaming 3.5",
-    ["Trigger 5 s · JSON inválido → DLQ", "Dedup id_transaccion (watermark 10 min)",
-     "R1 · P1: ventana 5 min / 1 min (update)", "&nbsp;&nbsp;&gt;5 tx o &gt;$2.000.000 por cliente",
-     "R2 · P2: dispositivo nuevo y monto", "&nbsp;&nbsp;&gt;3× promedio 30 d (join con Gold)",
-     "R3 · P3: lista de riesgo (join)", "Checkpoint en S3 · restart automático"], "A")
-box("batch", 2, 372, 152, "Spark batch (PySpark + Delta)",
-    ["Corre dentro de Airflow (patrón Lab 4a)", "Silver → Gold cada 10 min",
-     "Dimensiones SCD2 + hechos (MERGE)", "Métricas P4–P6 · OPTIMIZE ZORDER",
-     "Reproceso por rule_version (solo Gold)"], "B")
+card("stream", 2, CX[2], 226, COLW - 14, 232, CONTAINER, "Spark Structured Streaming",
+     ["Spark 3.5.1 + Delta 3.1.0 · trigger 5 s", "JSON inválido → DLQ · esquema",
+      "Dedup id_transaccion (watermark 10 min)", "R1 · P1: ventana 5 min / 1 min (update)",
+      "R2 · P2: dispositivo nuevo y monto", "&nbsp;&nbsp;&nbsp;&gt; 3× promedio de 30 días",
+      "R3 · P3: lista de riesgo (join)", "Checkpoint en S3 · restart automático"])
+card("batch", 2, CX[2], 534, COLW - 14, 136, CONTAINER, "Spark batch dentro de Airflow",
+     ["Patrón del Lab 4a · cada 10 min", "Silver → Gold: SCD2 + hechos (MERGE)",
+      "Métricas P4–P6 · OPTIMIZE ZORDER", "Reproceso por rule_version (Gold)"])
 
 # ---------- 4 · Almacenamiento ----------
-box("bronze", 3, 122, 82, "BRONZE · Delta Lake en S3",
-    ["Crudo, append-only · offset Kafka", "ingest_ts · catálogos y listas"], "AWS")
-box("silver", 3, 224, 112, "SILVER · Delta Lake en S3",
-    ["Limpio, tipado, sin duplicados (MERGE)", "Datos personales con HMAC-SHA-256",
-     "Cuarentena con motivo · alertas"], "AWS")
-box("gold", 3, 356, 168, "GOLD · Delta Lake en S3",
-    ["Esquema en estrella, particionado por fecha", "fact_transacciones · fact_alertas",
-     "dim_cliente (SCD2) · dim_comercio", "dim_dispositivo · dim_tiempo · dim_regla",
-     "Time travel 90 días (auditoría)"], "AWS")
-box("ddb", 3, 548, 128, "Amazon DynamoDB (on-demand)",
-    ["Tabla alertas_fraude", "PK id_cliente · SK ts_alerta#regla", "PutItem condicional (clave determinista)",
-     "Lectura eventual para analistas (AP)"], "AWS")
+BK = ICON.format(c=C_STORAGE, i="bucket")
+card("bronze", 3, CX[3], 226, COLW, 84, BK, "Bronze · bronze/",
+     ["Crudo, append-only · topic, partición,", "offset, ingest_ts · catálogos y listas"], icon=34)
+card("silver", 3, CX[3], 330, COLW, 100, BK, "Silver · silver/",
+     ["Limpio, tipado, sin duplicados (MERGE)", "PII con HMAC-SHA-256 · cuarentena", "Tabla de alertas"], icon=34)
+card("gold", 3, CX[3], 450, COLW, 142, BK, "Gold · gold/ (esquema en estrella)",
+     ["fact_transacciones · fact_alertas", "dim_cliente (SCD2) · dim_comercio",
+      "dim_dispositivo · dim_tiempo · dim_regla", "Partición por fecha · time travel 90 d"], icon=34)
+card("ddb", 3, CX[3], 680, COLW, 150, RES.format(c=C_DB, i="dynamodb"), "Amazon DynamoDB",
+     ["Tabla alertas_fraude (on-demand)", "PK id_cliente · SK ts_alerta#regla", "GSI por regla",
+      "PutItem condicional (idempotente)", "Lectura eventual (AP)"], icon=46)
 
 # ---------- 5 · Consumo ----------
-box("metabase", 4, 122, 96, "Metabase",
-    ["Dashboards de fraude por comercio,", "ciudad y franja horaria", "Conector Amazon Athena"], "B")
-box("athena", 4, 356, 120, "Amazon Athena + Glue Catalog",
-    ["Tablas Gold registradas en Glue", "(table_type = DELTA, patrón Lab 1b)", "SQL para P4, P5 y P6 · &lt; 10 s"], "AWS")
-box("api", 4, 548, 104, "API de alertas (FastAPI)",
-    ["GET /alertas por cliente, regla", "y rango de tiempo · lee DynamoDB", "Latencia alerta P95 &lt; 30 s"], "B")
-box("sns", 4, 672, 92, "Amazon SNS",
-    ["Topic alertas-fraude → correo", "al analista · solo alertas nuevas"], "AWS")
+card("sns", 4, CX[4], 196, COLW, 100, RES.format(c=C_INTEG, i="sns"), "Amazon SNS",
+     ["Topic alertas-fraude → correo", "Solo alertas nuevas", "También fallos de Airflow"], icon=46)
+card("athena", 4, CX[4], 380, COLW, 150, RES.format(c=C_ANALYTICS, i="athena"), "Amazon Athena",
+     ["SQL sobre Gold para P4, P5 y P6", "Menos de 10 s (30 días)", "Tablas registradas en", "AWS Glue Data Catalog",
+      "(table_type = DELTA, Lab 1b)"], icon=46)
+vertex("glue_i", "", CX[4] + COLW - 50, 470, 40, 40, ICON.format(c=C_ANALYTICS, i="glue_data_catalog"))
+card("metabase", 4, CX[4], 636, COLW - 14, 96, CONTAINER, "Metabase",
+     ["Dashboards de fraude por comercio,", "ciudad y franja horaria", "Conector Amazon Athena"])
+card("api", 4, CX[4], 752, COLW - 14, 100, CONTAINER, "API de alertas (FastAPI)",
+     ["GET /alertas por cliente, regla", "y rango de tiempo · lee DynamoDB", "Alerta en &lt; 30 s (P95)"])
+
+# ---------- Usuarios fuera de la nube ----------
+vertex("users", "<b>Analistas de fraude</b><br>y jefe de riesgo", CX[4] + COLW + 44, 700, 64, 64,
+       ICON.format(c=INK, i="users").replace("fontSize=12", "fontSize=12;fontFamily=" + FONT))
 
 # ---------- Flujos de datos ----------
-F, I, P, S = (LANES[i][1] for i in range(4))
-TRUNK = BX[3] - 24          # tronco vertical de las alertas (entre Procesamiento y Almacenamiento)
-XB = BX[3] - 14             # bajada de la extracción batch hacia Bronze
-edge("e_app_k", "app", "kafka", F, exit_=(1, 0.4), entry=(0, 0.235))
-edge("e_pg_x", "pg", "extract", F, exit_=(1, 0.5), entry=(0, 0.3), pts=[(BX[1] - 18, 312), (BX[1] - 18, 384)])
-edge("e_csv_x", "csv", "extract", F, exit_=(1, 0.5), entry=(0, 0.7), pts=[(BX[1] - 18, 436), (BX[1] - 18, 442)])
-edge("e_k_st", "kafka", "stream", I, exit_=(1, 0.35), entry=(0, 0.302))
-edge("e_x_br", "extract", "bronze", I, exit_=(1, 0.2), entry=(0, 0.75),
-     pts=[(BX[2] - 12, 369), (BX[2] - 12, 360), (XB, 360), (XB, 183)])
-edge("e_st_br", "stream", "bronze", P, exit_=(1, 0.124), entry=(0, 0.25))
-edge("e_st_sv", "stream", "silver", P, exit_=(1, 0.699), entry=(0, 0.5))
-edge("e_br_sv", "bronze", "silver", S, exit_=(0.5, 1), entry=(0.5, 0))
-edge("e_sv_gd", "silver", "gold", S, exit_=(0.5, 1), entry=(0.5, 0))
-edge("e_b_gd", "batch", "gold", P, exit_=(1, 0.72), entry=(0, 0.72))
-edge("e_gd_at", "gold", "athena", S, exit_=(1, 0.3), entry=(0, 0.35))
-edge("e_at_mb", "athena", "metabase", LANES[4][1], exit_=(0.5, 0), entry=(0.5, 1))
-edge("e_dd_api", "ddb", "api", S, exit_=(1, 0.4), entry=(0, 0.45))
-# Alertas (baja latencia)
-edge("e_st_dd", "stream", "ddb", ALERT, dashed=True, exit_=(1, 0.93), entry=(0, 0.4),
-     pts=[(TRUNK, 332), (TRUNK, 599)])
-edge("e_st_sns", "stream", "sns", ALERT, dashed=True, exit_=(1, 0.93), entry=(0, 0.5),
-     pts=[(TRUNK, 332), (TRUNK, 718)])
-# Lookup de dimensiones desde Gold (join stream-static)
-edge("e_gd_st", "gold", "stream", LOOKUP, dashed=True, exit_=(0, 0.1), entry=(0.95, 1), width=1.5,
-     pts=[(BX[2] + 0.95 * BOX_W, 373)])
+GAPX = CX[2] + COLW - 14 + 22         # corredor entre Procesamiento y Almacenamiento (EC2 -> S3)
+TRUNK = CX[3] - 22                    # tronco de alertas
+edge("e1", "prod", "kafka", exit_=(1, 0.4), entry=(0, 0.2))
+edge("e2", "kafka", "stream", exit_=(1, 0.3), entry=(0, 0.3))
+edge("e3", "stream", "bronze", exit_=(1, 0.12), entry=(0, 0.331))
+edge("e4", "stream", "silver", exit_=(1, 0.52), entry=(0, 0.166))
+edge("e5", "pg", "extract", exit_=(1, 0.5), entry=(0, 0.35))
+edge("e6", "csv", "extract", exit_=(1, 0.5), entry=(0, 0.75), pts=[(CX[1] - 20, 772), (CX[1] - 20, 636)])
+edge("e7", "extract", "bronze", exit_=(0.75, 0), entry=(0, 0.75), pts=[(CX[1] + 207, 482), (CX[3] - 14, 482), (CX[3] - 14, 289)])
+edge("e8", "bronze", "silver", exit_=(0.5, 1), entry=(0.5, 0))
+edge("e9", "silver", "gold", exit_=(0.5, 1), entry=(0.5, 0))
+edge("e10", "batch", "gold", exit_=(1, 0.25), entry=(0, 0.72))
+edge("e11", "gold", "athena", exit_=(1, 0.35), entry=(0, 0.6))
+edge("e12", "athena", "metabase", exit_=(0.75, 1), entry=(0.75, 0))
+edge("e13", "ddb", "api", exit_=(1, 0.65), entry=(0, 0.5))
+edge("e14", "metabase", "users", exit_=(1, 0.5), entry=(0, 0.25), pts=[(CX[4] + COLW + 22, 684), (CX[4] + COLW + 22, 716)], width=1.4)
+edge("e15", "api", "users", exit_=(1, 0.3), entry=(0, 0.75), pts=[(CX[4] + COLW + 22, 782), (CX[4] + COLW + 22, 748)], width=1.4)
+edge("e16", "sns", "users", ALERT, dashed=True, exit_=(1, 0.5), entry=(0.5, 0), pts=[(CX[4] + COLW + 76, 246)])
+# Alertas de baja latencia
+edge("a1", "stream", "ddb", ALERT, dashed=True, exit_=(1, 0.9), entry=(0, 0.3), pts=[(TRUNK, 435), (TRUNK, 725)])
+edge("a2", "stream", "sns", ALERT, dashed=True, exit_=(0.75, 0), entry=(0.5, 0),
+     pts=[(CX[2] + 207, 170), (CX[4] + 145, 170)])
+# Lookup de dimensiones (join stream-static)
+edge("l1", "gold", "stream", LOOKUP, dashed=True, exit_=(0, 0.12), entry=(0.85, 1), width=1.4,
+     pts=[(CX[2] + 235, 467)])
 
 # ---------- Orquestación ----------
-vertex("orq", "", LX[0], 796, LX[4] + LANE_W - LX[0], 136,
-       "rounded=1;arcSize=4;fillColor=#F4F2EC;strokeColor=#8A877F;strokeWidth=1.5;html=1;")
-vertex("orq_t",
-       '<b style="font-size:14px;color:#3D3C38">ORQUESTACIÓN · Apache Airflow 2.9 (LocalExecutor, EC2-B)</b>'
-       '<span style="font-size:12px;color:#5F5E5A">&nbsp;&nbsp;— dependencias all_success: un fallo detiene los pasos '
-       "siguientes · 3 reintentos con espera exponencial · notificación por SNS</span>",
-       LX[0] + 14, 802, 1400, 24, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;fontFamily={FONT};")
-TASK = (f"rounded=1;html=1;fillColor=#FFFFFF;strokeColor={ORQ};fontColor=#2A2A2A;fontSize=12;"
-        f"fontFamily=Courier New;align=center;verticalAlign=middle;")
+OY = 906
+vertex("orq", "", 22, OY, CX[4] + COLW - 4, 112, "rounded=1;arcSize=5;fillColor=#F4F2EC;strokeColor=#8A877F;html=1;")
+vertex("orq_i", "", 34, OY + 10, 30, 30, CONTAINER)
+text("orq_t", '<b>ORQUESTACIÓN · Apache Airflow 2.9 (LocalExecutor, contenedor en EC2-B)</b>'
+     '<span style="color:#5F6B7A">&nbsp;&nbsp;— dependencias all_success: un fallo detiene los pasos siguientes · '
+     '3 reintentos con espera exponencial · notificación por SNS</span>', 72, OY + 10, 1500, 30, size=13)
+TASK = ("rounded=1;html=1;fillColor=#FFFFFF;strokeColor=#5F5E5A;fontColor=#232F3E;fontSize=12;"
+        "fontFamily=Courier New;align=center;verticalAlign=middle;")
 
 
 def dag(prefix, y, label, sub, tasks):
-    vertex(prefix + "_l", f'<b style="font-size:13px">{label}</b><br><span style="font-size:11.5px;color:#5F5E5A">{sub}</span>',
-           LX[0] + 14, y - 4, 200, 36, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;fontFamily={FONT};")
-    x = 236
-    prev = None
+    text(prefix + "_l", f'<b>{label}</b><br><span style="color:#5F6B7A;font-size:11.5px">{sub}</span>',
+         40, y - 4, 210, 36, size=13)
+    x, prev = 260, None
     for i, t in enumerate(tasks):
-        tid = f"{prefix}{i}"
-        w = 8.2 * len(t) + 22
-        vertex(tid, t, x, y, w, 28, TASK)
+        tid, w = f"{prefix}{i}", 8.3 * len(t) + 22
+        vertex(tid, t, x, y, w, 26, TASK)
         if prev:
-            edge(f"{tid}_e", prev, tid, ORQ, width=1.5)
-        prev = tid
-        x += w + 26
+            edge(f"{tid}_e", prev, tid, "#5F5E5A", width=1.3)
+        prev, x = tid, x + w + 26
 
 
-dag("d1", 834, "DAG catalogos_diario", "diario 02:00 o al llegar un CSV",
+dag("d1", OY + 46, "DAG catalogos_diario", "diario 02:00 o al llegar un CSV",
     ["extract_postgres", "sensor_csv_riesgo", "load_bronze", "silver_catalogos"])
-dag("d2", 880, "DAG fraude_pipeline", "cada 10 minutos",
+dag("d2", OY + 80, "DAG fraude_pipeline", "cada 10 minutos",
     ["check_streaming_vivo", "gold_dimensiones", "gold_hechos", "quality_checks", "registrar_glue"])
-vertex("orq_n", "El job de streaming corre continuo en EC2-A (restart automático desde el checkpoint); "
-       "check_streaming_vivo verifica su latido y alerta si lleva más de 2 min sin avanzar.",
-       LX[0] + 14, 912, 1300, 18, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;align=left;verticalAlign=middle;fontSize=11.5;fontColor=#5F5E5A;fontFamily={FONT};")
 
 # ---------- Leyenda ----------
-LY = 950
-vertex("lg_t", "<b>Leyenda</b>", 14, LY, 70, 20, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;fontSize=12.5;align=left;verticalAlign=middle;fontFamily={FONT};")
-legend_edges = [("Flujo de datos", S, False), ("Alertas de fraude (baja latencia)", ALERT, True),
-                ("Lookup de dimensiones desde Gold (join stream-static)", LOOKUP, True)]
-x = 92
-for i, (txt, col, dsh) in enumerate(legend_edges):
-    st = (f"html=1;strokeColor={col};strokeWidth=2;endArrow=block;endFill=1;endSize=7;"
-          + ("dashed=1;dashPattern=6 4;" if dsh else ""))
+LY = 1034
+text("lg", "<b>Leyenda</b>", 22, LY, 80, 20, size=12.5)
+items = [("Flujo de datos", INK, False), ("Alertas de fraude (baja latencia)", ALERT, True),
+         ("Lookup de dimensiones desde Gold (join stream-static)", LOOKUP, True)]
+x = 100
+for i, (t, col, dsh) in enumerate(items):
+    st = f"html=1;strokeColor={col};strokeWidth=1.8;endArrow=block;endFill=1;endSize=6;" + ("dashed=1;dashPattern=6 4;" if dsh else "")
     cells.append(f'<mxCell id="lg_e{i}" style="{st}" edge="1" parent="1"><mxGeometry relative="1" as="geometry">'
-                 f'<mxPoint x="{x}" y="{LY + 10}" as="sourcePoint"/><mxPoint x="{x + 44}" y="{LY + 10}" as="targetPoint"/>'
-                 '</mxGeometry></mxCell>')
-    tw = 7.0 * len(txt) + 10
-    vertex(f"lg_x{i}", txt, x + 52, LY, tw, 20, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;fontSize=12;align=left;verticalAlign=middle;fontFamily={FONT};")
-    x += 52 + tw + 18
-for i, key in enumerate(["A", "B", "AWS"]):
-    text, fill, stroke = DEPLOY[key]
-    desc = {"A": "t3.large · ingesta y streaming", "B": "t3.large · batch, orquestación y consumo",
-            "AWS": "servicio administrado que cobra por uso"}[key]
-    pw = 46 if key != "AWS" else 78
-    xx = 14 + i * 400 if i < 2 else 14 + 2 * 400
-    vertex(f"lg_d{i}", text, xx, LY + 30, pw, 17,
-           f"rounded=1;arcSize=50;html=1;fillColor={fill};strokeColor={stroke};fontColor={stroke};fontSize=10;"
-           f"fontStyle=1;align=center;verticalAlign=middle;fontFamily={FONT};")
-    vertex(f"lg_dt{i}", desc, xx + pw + 8, LY + 28, 300, 20,
-           f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;fontSize=12;align=left;verticalAlign=middle;fontFamily={FONT};")
-vertex("lg_n", "Mismo docker-compose.yml con perfiles streaming y batch; también corre completo en un portátil. "
-       "Latencia: evento → alerta &lt; 30 s (P95) · evento → Gold &lt; 15 min.",
-       14, LY + 50, 1400, 18, f"text;html=1;fillColor=none;strokeColor=none;fillColor=none;strokeColor=none;fontSize=11.5;fontColor=#5F5E5A;align=left;verticalAlign=middle;fontFamily={FONT};")
+                 f'<mxPoint x="{x}" y="{LY + 10}" as="sourcePoint"/><mxPoint x="{x + 42}" y="{LY + 10}" as="targetPoint"/>'
+                 "</mxGeometry></mxCell>")
+    tw = 6.9 * len(t) + 12
+    text(f"lg_t{i}", t, x + 50, LY, tw, 20, size=12)
+    x += 50 + tw + 22
+vertex("lg_c", "", 22, LY + 30, 26, 26, CONTAINER)
+text("lg_ct", "Contenedor Docker (software abierto que cobra solo la EC2)", 54, LY + 33, 360, 20, size=12)
+vertex("lg_g", "", 430, LY + 30, 26, 26, GROUP.format(g="group_ec2_instance_contents", s="#D86613", f="none", fc="#D86613", d=0))
+text("lg_gt", "Grupo EC2 instance contents (qué corre en cada instancia)", 462, LY + 33, 380, 20, size=12)
+vertex("lg_s", "", 860, LY + 30, 26, 26, RES.format(c=C_ANALYTICS, i="athena"))
+text("lg_st", "Servicio administrado de AWS que cobra por uso (S3, DynamoDB, Athena, Glue, SNS)", 892, LY + 33, 560, 20, size=12)
+text("lg_n", "Un mismo docker-compose.yml con perfiles streaming, batch y consumo; también corre completo en un "
+     "portátil. Latencia: evento → alerta &lt; 30 s (P95) · evento → Gold &lt; 15 min. Credenciales: LabInstanceProfile.",
+     22, LY + 62, 1600, 20, size=11.5, color="#5F6B7A")
 
 model = (f'<mxGraphModel dx="{W}" dy="{H}" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" '
          f'fold="1" page="1" pageScale="1" pageWidth="{W}" pageHeight="{H}" background="#FFFFFF" math="0" shadow="0">'
@@ -243,7 +255,6 @@ mxfile = (f'<mxfile host="app.diagrams.net"><diagram id="fraudlens-arq" name="Ar
 with open(f"{OUT}/arquitectura.drawio", "w", encoding="utf-8") as f:
     f.write(mxfile)
 
-# Enlace editable: draw.io abre el diagrama embebido en la URL (#R + deflate + base64)
 raw = urllib.parse.quote(mxfile, safe="")
 comp = zlib.compressobj(9, zlib.DEFLATED, -15)
 data = base64.b64encode(comp.compress(raw.encode()) + comp.flush()).decode()
