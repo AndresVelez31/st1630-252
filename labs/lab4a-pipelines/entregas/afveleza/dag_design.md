@@ -19,7 +19,8 @@ analítica de Nequi revisa estas métricas (ventas por región y mes, top
 productos) una vez al día, típicamente en la mañana, con el día anterior ya
 cerrado. Correrlo **cada hora** no aporta: el día todavía no ha terminado, se
 reprocesaría la misma partición 24 veces y cada corrida levanta 4 sesiones de
-Spark (en nuestra ejecución cada corrida tomó ~1:20 min). Correrlo **cada semana** es
+Spark (en nuestra ejecución, cada corrida sin reintentos tomó entre 1:18 y
+~1:35 min; *Min Run Duration* = 00:01:18 en el Grid). Correrlo **cada semana** es
 demasiado lento para el negocio: un problema de datos o una caída en ventas se
 vería con hasta 7 días de retraso, y cada corrida tendría que procesar 7 días
 de golpe.
@@ -37,9 +38,10 @@ El trade-off es que, si el DAG se cae varios días, esos huecos **no** se
 rellenan solos: alguien tiene que notarlo y lanzar el backfill (ver la sección
 de alertas).
 
-**Decisión adicional: `max_active_runs=1`.** Lo agregamos para que las fechas de un
-backfill se procesen **una a la vez, en orden**, porque varias corridas en
-paralelo escriben sobre la misma tabla Silver:
+**Decisión adicional: `max_active_runs=1`.** Es el único cambio que hicimos
+fuera de los `# TODO`: está en la definición del DAG, que venía dada. Lo
+agregamos para que las fechas de un backfill se procesen **una a la vez, en
+orden**, porque varias corridas en paralelo escriben sobre la misma tabla Silver:
 1. **Primera escritura:** si 2026-01-01 y 2026-01-02 corrieran a la vez, ambas
    verían `DeltaTable.isDeltaTable(...) == False`, ambas entrarían a la rama
    `overwrite` y la última en terminar **borraría silenciosamente** los datos de
@@ -49,9 +51,14 @@ paralelo escriben sobre la misma tabla Silver:
 3. **Recursos:** cada task levanta su propia JVM de Spark; con ~7.3 GB de RAM
    asignados a Docker, varias en paralelo pueden agotar la memoria.
 
-El costo es velocidad: el backfill de 7 fechas tardó ~15 min en serie. El
-historial de Silver confirma el orden secuencial: v0 (WRITE, 01-01) y luego
-v1–v6 (MERGE) cada ~1:20 min.
+El costo es velocidad. El primer backfill de 7 fechas tardó ~15 min (la
+primera corrida arrancó a las 06:35:59 y la última a las 06:49:44), pero
+~5 min de eso fueron el `retry_delay` del `ingest_bronze` del 2026-01-01, que
+falló una vez por permisos del volumen (por eso esa corrida dura 6:34 en el
+Grid y la media sale en 2:08). El segundo backfill, sin reintentos, tardó
+~10 min: solo entre el MERGE v7 (07:09:23) y el v13 (07:17:49) pasan 8:26. El historial de
+Silver confirma el orden secuencial: v0 (WRITE, 01-01) y luego v1–v6 (MERGE)
+cada ~1:25 min.
 
 ## Idempotencia — ¿qué significa y cómo la logramos?
 
@@ -108,7 +115,8 @@ la versión 6 a la **13**, es decir, se ejecutaron **7 MERGE nuevos** (uno por
 fecha) y aun así Silver no creció ni una fila. Eso prueba que el trabajo sí se
 rehízo y que el MERGE evitó la duplicación.
 
-Comandos ejecutados:
+Comandos ejecutados (`contar_filas.py` está en `scripts/`; para correrlo lo
+copiamos a `datos/`, que el contenedor monta en `/opt/airflow/data/raw`):
 
 ```bash
 # 1er backfill
@@ -144,6 +152,36 @@ Silver por fecha (idéntico en ambas corridas):
   2026-01-04: 377   TOTAL SILVER: 2820 (= pedido_id distintos)
 ```
 
+**Gold se recalcula completo en cada corrida.** `build_gold` lee **todo**
+Silver y escribe las dos tablas con `mode("overwrite")`, así que su resultado
+depende solo del estado actual de Silver. La suma de `n_transacciones` de
+`ventas_por_region` es 2,820 en ambos backfills, igual al total de Silver.
+El historial Delta de las dos tablas Gold lo confirma
+(`evidencia/conteos_final.txt`): 15 versiones, v0–v14, **todas** `WRITE` en modo
+`Overwrite`, una por cada corrida exitosa de `build_gold` (7 del primer
+backfill, 7 del segundo y 1 de la recuperación del 2026-01-08). No hay ningún
+MERGE ni append. Tampoco hay versión para el 2026-01-09, porque ese día
+`build_gold` quedó en `upstream_failed`:
+
+```
+===== GOLD ventas_por_region: historial Delta =====
+|0      |2026-10-15 06:42:25.582|WRITE    |Overwrite|
+...
+|13     |2026-10-15 07:18:14.835|WRITE    |Overwrite|
+|14     |2026-10-15 08:51:38.605|WRITE    |Overwrite|
+
+===== GOLD: top_productos =====
+  filas: 10
+|Smart TV 50 pulgadas   |1.9809694E9 |
+|Tenis running          |2.158843E8  |
+|Cafetera eléctrica     |1.633453E8  |
+...
+```
+
+`top_productos` tiene 10 filas y no 20 porque el dataset solo tiene 10
+productos distintos: el `limit(20)` es un tope, no una cantidad garantizada.
+Con más productos en el catálogo, la tabla se cortaría en 20.
+
 ## Data quality checks implementados
 
 | Check | Task donde vive | ¿Qué detecta? | ¿Qué hace si falla? |
@@ -151,6 +189,21 @@ Silver por fecha (idéntico en ambas corridas):
 | Nulos críticos | `validate_bronze` | Calcula, para `pedido_id`, `producto` y `total`, qué porcentaje de filas del día viene vacío, y lo registra en el log (p. ej. `Nulos en total: 51 de 510 (10.0%)`). Falla si **alguna** supera el 5%. | Lanza `ValueError` indicando la columna y el porcentaje. La task queda en rojo (tras los 2 reintentos) y `transform_silver`/`build_gold` quedan en `upstream_failed`: el día no entra a Silver ni a Gold (verificado en la Parte 4: Silver siguió en 2,820 filas). |
 | Rango de monto | `validate_bronze` | Cuenta las filas con `total <= 0`. Basta **una** para fallar. | Lanza `ValueError` con el conteo exacto y bloquea el resto del pipeline igual que el anterior. |
 | Cardinalidad de canal | `validate_bronze` | Cuenta los valores distintos de `canal` y avisa si hay más de 4 (los esperados: `app_movil`, `web`, `tienda_fisica`, `telefono`). | **No** lanza excepción: deja un `logging.warning` y el pipeline continúa. |
+
+Los dos checks duros quedaron probados de dos formas. Con **pytest**, los 3
+tests de `dags/tests/test_ventas_pipeline.py` pasan (`evidencia/pytest_output.txt`):
+
+```
+dags/tests/test_ventas_pipeline.py::test_validate_no_nulls_passes PASSED [ 33%]
+dags/tests/test_ventas_pipeline.py::test_validate_nulls_fails PASSED     [ 66%]
+dags/tests/test_ventas_pipeline.py::test_validate_negative_totals_fails PASSED [100%]
+
+============================== 3 passed in 13.71s ==============================
+```
+
+Y con **datos reales corruptos** dentro del DAG, uno por check (ver la sección
+"Fallo provocado"): nulos en `total` el 2026-01-08 y montos negativos el
+2026-01-09.
 
 **Por qué el umbral de nulos es 5% y no cero:** en datos reales es normal que
 llegue algún nulo suelto (un error puntual de captura en la fuente), y tumbar
@@ -229,6 +282,8 @@ siempre procesa exactamente los mismos datos.
 
 ## Fallo provocado — log de `validate_bronze`
 
+### Fallo 1 — nulos en `total` (2026-01-08)
+
 Corrompimos el CSV dejando vacía la columna `total` en 51 de las 510 filas del
 2026-01-08 (10%) y corrimos:
 
@@ -292,6 +347,72 @@ quedó con la partición `fecha=2026-01-08` (510 filas), pero **Silver siguió e
 2,820 filas** y su última versión Delta siguió siendo la v13: el dato
 corrupto nunca llegó a Silver ni a Gold.
 
+### Fallo 2 — montos negativos (2026-01-09)
+
+El fallo 1 solo prueba `check_nulos_criticos`. Para probar también
+`check_rango_monto` con datos reales, volvimos `total` negativo en
+6 de las 315 filas del 2026-01-09 (1.9%), **sin** dejar
+nulos:
+
+```bash
+cd datos && python corromper_fecha.py 2026-01-09 0.02 negativo && cd ..
+docker compose exec airflow-scheduler airflow dags backfill -s 2026-01-09 -e 2026-01-09 ventas_colombia_pipeline
+```
+
+Resultado: `ingest_bronze` = success · `validate_bronze` = failed ·
+`transform_silver` y `build_gold` = upstream_failed. Esta vez el check de
+nulos pasa (0%) y falla el de rango. Captura:
+`capturas/fallo_rango_monto_graph_2026-01-09.png`. Log
+(`evidencia/log_validate_bronze_fallido_2026-01-09.log`):
+
+```
+[2026-10-15T09:02:54.763+0000] {taskinstance.py:2306} INFO - Starting attempt 3 of 3
+[2026-10-15T09:03:02.188+0000] {ventas_pipeline.py:164} INFO - Nulos en pedido_id: 0 de 315 (0.0%)
+[2026-10-15T09:03:02.357+0000] {ventas_pipeline.py:164} INFO - Nulos en producto: 0 de 315 (0.0%)
+[2026-10-15T09:03:02.554+0000] {ventas_pipeline.py:164} INFO - Nulos en total: 0 de 315 (0.0%)
+[2026-10-15T09:03:02.556+0000] {ventas_pipeline.py:222} INFO - Check nulos críticos: OK
+[2026-10-15T09:03:02.914+0000] {ventas_pipeline.py:181} INFO - Filas con total <= 0: 6
+...
+ValueError: Check rango de monto FALLÓ: 6 filas con total <= 0 (una venta no puede ser cero ni negativa).
+```
+
+Con solo 6 filas malas (1.9% del día), este check falla igual. Es la diferencia
+con el de nulos: si el 1.9% de los `total` vinieran vacíos, el check de nulos
+(umbral 5%) dejaría pasar el día. Silver no cambió: sigue sin filas del
+2026-01-09 y su última versión siguió siendo la del 2026-01-08.
+
+### Recuperación del 2026-01-08
+
+Después de regenerar el CSV limpio (`python gen_dataset.py`), volvimos a
+correr el 2026-01-08:
+
+```bash
+docker compose exec airflow-scheduler airflow dags backfill --reset-dagruns -y -s 2026-01-08 -e 2026-01-08 ventas_colombia_pipeline
+```
+
+Las 4 tasks quedaron en verde (captura
+`capturas/recuperacion_graph_2026-01-08.png`). El `overwrite` de `ingest_bronze` reemplazó la
+partición corrupta `fecha=2026-01-08` (con sus 51 nulos) por la versión limpia,
+y el MERGE agregó el día a Silver: **2,820 → 3,310 filas** (+490: las 510 del
+día menos 20 devueltos), con 3,310 `pedido_id` distintos y una sola versión
+nueva, la v14 (MERGE de las 08:51:13) (`evidencia/conteos_final.txt`). Gold
+también se recalculó: la suma de `n_transacciones` pasó a 3,310.
+Es la misma propiedad de idempotencia, ahora usada para reparar: rehacer un día
+no deja rastros de la corrida anterior.
+
+### Los reintentos no sirven para un error de datos
+
+`validate_bronze` se intentó 3 veces (`retries=2`, `retry_delay` de 5 min), así
+que la corrida tardó 11:09 en quedar en rojo, y los 3 intentos dieron
+exactamente el mismo `ValueError`. Un reintento sirve para errores
+**transitorios**, como el de permisos del volumen que sí se arregló al
+reintentar `ingest_bronze`. Un dato corrupto, en cambio, no cambia entre
+intentos: solo retrasa ~10 min la alerta. En producción le pondríamos
+`retries=0` a `validate_bronze` (o lanzaríamos `AirflowFailException`, que
+Airflow no reintenta) y dejaríamos los reintentos en las tasks que leen o
+escriben archivos. No lo cambiamos en el código porque la definición del DAG
+venía dada.
+
 **¿Qué cambiarías en el pipeline para que este tipo de fallo no llegue
 a producción sin que nadie se entere?** El check ya evita que el dato corrupto
 llegue a Silver/Gold, pero en la Parte 4 nos enteramos del fallo solo porque estábamos
@@ -344,8 +465,9 @@ mirando la UI. En producción agregaríamos:
   carpeta desde donde se ejecuta, así que hay que correrlo dentro de `datos/`
   para que el contenedor lo vea.
 - **Lentitud:** cada task levanta su propia sesión de Spark, así que cada
-  corrida tomó ~1:20 min y cada backfill de 7 días ~15 min. Con los reintentos
-  de 5 minutos, el fallo provocado tardó ~12 min en quedar en rojo.
+  corrida tomó ~1:20 min y un backfill de 7 días entre ~10 min (sin reintentos)
+  y ~15 min (con uno). Con los reintentos de 5 minutos, el fallo provocado
+  tardó 11:09 en quedar en rojo.
 - **Hay que pensar en concurrencia y en conceptos como `catchup` o `ds`:**
   errores como correr fechas en paralelo o usar la fecha del sistema no
   producen un error visible, sino datos incorrectos.
